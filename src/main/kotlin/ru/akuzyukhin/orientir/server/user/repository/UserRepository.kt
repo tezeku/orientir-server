@@ -19,7 +19,7 @@ interface UserRepository : JpaRepository<User, Long> {
      * @param phoneNumber номер телефона в формате E.164, например "+79223334455"
      * @return найденный пользователь/null
      */
-    fun findByUsername(phoneNumber: String): User?
+    fun findByPhoneNumber(phoneNumber: String): User?
 
     /**
      * Проверка существования пользователя с указанным номером телефона.
