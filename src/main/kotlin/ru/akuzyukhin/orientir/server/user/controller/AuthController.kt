@@ -16,7 +16,7 @@ import ru.akuzyukhin.orientir.server.user.service.AuthService
 /**
  * Контроллер аутентификации.
  *
- * Обработка публичный эндпоинтов: регистрация, логин, обновление токенов.
+ * Обработка публичных эндпоинтов: регистрация, логин, обновление токенов.
  */
 @RestController
 @RequestMapping("/api/v1/auth")
