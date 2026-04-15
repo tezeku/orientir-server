@@ -41,7 +41,8 @@ dependencies {
 	runtimeOnly("io.jsonwebtoken:jjwt-impl:0.13.0")
 	runtimeOnly("io.jsonwebtoken:jjwt-jackson:0.13.0")
 
-
+	// RRULE - парсинг правил повторения задач
+	implementation("org.dmfs:lib-recur:0.17.1")
 }
 
 kotlin {
