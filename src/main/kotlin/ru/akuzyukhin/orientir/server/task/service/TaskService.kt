@@ -176,24 +176,24 @@ class TaskService(
         for (task in tasks) {
             // Проверка попадания задачи на указанную дату
             if (taskOccursOnDate(task, date)) {
-                val scheduledDateTime = LocalDateTime.of(date, task.scheduledTime)
+                val scheduleDateTime = LocalDateTime.of(date, task.scheduledTime)
 
                 // Поиск существующего экземпляра или создание нового
                 val execution = if (taskExecutionRepository.existsByTaskIdAndScheduledDateTime(
-                    task.id, scheduledDateTime
+                    task.id, scheduleDateTime
                 )) {
                     // Поиск существующего
                     taskExecutionRepository
                         .findAllByTaskIdInAndScheduledDateTimeBetween(
                             listOf(task.id), dayStart, dayEnd
                         )
-                        .first { it.scheduledDateTime == scheduledDateTime }
+                        .first { it.scheduledDateTime == scheduleDateTime }
                 } else {
                     // Создание нового экземпляра
                     taskExecutionRepository.save(
                         TaskExecution(
                             task = task,
-                            scheduledDateTime = scheduledDateTime,
+                            scheduledDateTime = scheduleDateTime,
                         )
                     )
                 }
@@ -203,7 +203,7 @@ class TaskService(
         }
 
         // Сортировка по времени
-        return result.sortedBy { it["scheduledDateTime"] as String }
+        return result.sortedBy { it["scheduleDateTime"] as String }
     }
 
     /** Получение задач на день для куратора */
