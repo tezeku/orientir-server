@@ -1,6 +1,7 @@
 package ru.akuzyukhin.orientir.server.task.repository
 
 import org.springframework.data.jpa.repository.JpaRepository
+import ru.akuzyukhin.orientir.server.common.enum.ExecutionStatus
 import ru.akuzyukhin.orientir.server.task.entity.TaskExecution
 import java.time.LocalDateTime
 
@@ -35,4 +36,12 @@ interface TaskExecutionRepository : JpaRepository<TaskExecution, Long> {
      * @return true если экземпляр уже существует
      */
     fun existsByTaskIdAndScheduledDateTime(taskId: Long, scheduledDateTime: LocalDateTime): Boolean
+
+    /**
+     * Получение всех экземпляров с указанным статусом.
+     *
+     * @param status статус для поиска
+     * @return список экземпляров
+     */
+    fun findAllByStatus(status: ExecutionStatus): List<TaskExecution>
 }

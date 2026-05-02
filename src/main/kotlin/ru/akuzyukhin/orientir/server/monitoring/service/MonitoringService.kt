@@ -4,8 +4,11 @@ import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import ru.akuzyukhin.orientir.server.common.enum.ExecutionStatus
 import ru.akuzyukhin.orientir.server.common.enum.Importance
+import ru.akuzyukhin.orientir.server.common.enum.NotificationType
+import ru.akuzyukhin.orientir.server.notification.service.NotificationService
 import ru.akuzyukhin.orientir.server.task.entity.TaskExecution
 import ru.akuzyukhin.orientir.server.task.repository.TaskExecutionRepository
+import ru.akuzyukhin.orientir.server.user.repository.CuratorWardRepository
 import ru.akuzyukhin.orientir.server.user.repository.WardRepository
 import java.time.LocalDateTime
 import kotlin.math.abs
@@ -21,7 +24,9 @@ import java.time.Duration
 @Service
 class MonitoringService(
     private val taskExecutionRepository: TaskExecutionRepository,
-    private val wardRepository: WardRepository
+    private val wardRepository: WardRepository,
+    private val notificationService: NotificationService,
+    private val curatorWardRepository: CuratorWardRepository
 ) {
 
     /**
@@ -89,9 +94,24 @@ class MonitoringService(
         execution.status = ExecutionStatus.BLOCKED
         taskExecutionRepository.save(execution)
 
-        // TODO: отправка уведомления куратору (Notification Module)
+        // Отправка уведомления всем кураторам подопечного
+        val ward = wardRepository.findByUserId(wardUserId)!!
+        val curatorLinks = curatorWardRepository.findAllByWardId(ward.id)
+
+        for (link in curatorLinks) {
+            notificationService.create(
+                recipient = link.curator.user,
+                type = NotificationType.MISSED,
+                title = "Подопечный не может выполнить задачу",
+                body = "${ward.user.surname} ${ward.user.name} сообщил о невозможности " +
+                        "выполнить задачу «${execution.task.name}»",
+                taskExecution = execution,
+                comment = comment
+            )
+        }
 
         return buildResponse(execution)
+
     }
 
     /**
