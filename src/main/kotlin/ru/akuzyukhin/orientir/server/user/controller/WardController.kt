@@ -5,6 +5,7 @@ import org.springframework.security.core.Authentication
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RestController
+import ru.akuzyukhin.orientir.server.user.dto.CuratorSummary
 import ru.akuzyukhin.orientir.server.user.service.CuratorWardService
 
 @RestController
@@ -14,13 +15,12 @@ class WardController(
 ) {
 
     /**
-     * Получение списка кураторо текущего подопечного.
+     * Получение списка кураторов текущего подопечного.
      *
-     * @param authentication объект аутентификации из SecurityContext
      * @return 200 OK со списком кураторов
      */
     @GetMapping("/curators")
-    fun getCurators(authentication: Authentication): ResponseEntity<List<Map<String, Any?>>> {
+    fun getCurators(authentication: Authentication): ResponseEntity<List<CuratorSummary>> {
         val userId = authentication.principal as Long
         return ResponseEntity.ok(curatorWardService.getCurators(userId))
     }

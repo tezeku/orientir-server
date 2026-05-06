@@ -17,6 +17,7 @@ spring:
     module:
       kotlin:
         null-is-same-as-default: true
+    property-naming-strategy: SNAKE_CASE
 
 server:
   port: 8080

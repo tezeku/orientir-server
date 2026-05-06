@@ -2,7 +2,11 @@ package ru.akuzyukhin.orientir.server.user.service
 
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
+import ru.akuzyukhin.orientir.server.user.dto.CuratorSummary
+import ru.akuzyukhin.orientir.server.user.dto.WardSummary
+import ru.akuzyukhin.orientir.server.user.entity.Curator
 import ru.akuzyukhin.orientir.server.user.entity.CuratorWard
+import ru.akuzyukhin.orientir.server.user.entity.Ward
 import ru.akuzyukhin.orientir.server.user.repository.CuratorRepository
 import ru.akuzyukhin.orientir.server.user.repository.CuratorWardRepository
 import ru.akuzyukhin.orientir.server.user.repository.WardRepository
@@ -33,25 +37,19 @@ class CuratorWardService(
      * @throws IllegalStateException если связь уже существует
      */
     @Transactional
-    fun addWard(curatorUserId: Long, wardPhoneNumber: String): Map<String, Any?> {
-        // Поиск куратора по userId из JWT
+    fun addWard(curatorUserId: Long, wardPhoneNumber: String): WardSummary {
         val curator = curatorRepository.findByUserId(curatorUserId)
             ?: throw IllegalArgumentException("Профиль куратора не найден")
 
-        // Поиск подопечного по номеру телефона
         val ward = wardRepository.findByUserPhoneNumber(wardPhoneNumber)
             ?: throw IllegalArgumentException("Подопечный с номером телефона $wardPhoneNumber не найден")
 
-        // Проверка отсутствия связи
         if (curatorWardRepository.existsByCuratorIdAndWardId(curator.id, ward.id)) {
-            throw IllegalStateException("Подопечный уже привяазан к данному куратору")
+            throw IllegalStateException("Подопечный уже привязан к данному куратору")
         }
 
-        // Создание связи
-        val curatorWard = curatorWardRepository.save(
-            CuratorWard(curator = curator, ward = ward)
-        )
-        return buildWardResponse(curatorWard)
+        curatorWardRepository.save(CuratorWard(curator = curator, ward = ward))
+        return ward.toSummary()
     }
 
     /**
@@ -60,21 +58,12 @@ class CuratorWardService(
      * @param curatorUserId идентификатор пользователя-куратора из JWT
      * @return список подопечных с их данными
      */
-    fun getWards(curatorUserId: Long): List<Map<String, Any?>> {
+    fun getWards(curatorUserId: Long): List<WardSummary> {
         val curator = curatorRepository.findByUserId(curatorUserId)
             ?: throw IllegalArgumentException("Профиль куратора не найден")
 
-        return curatorWardRepository.findAllByCuratorId(curator.id).map { cw ->
-            mapOf(
-                "id" to cw.ward.id,
-                "userId" to cw.ward.user.id,
-                "surname" to cw.ward.user.surname,
-                "name" to cw.ward.user.name,
-                "patronymic" to cw.ward.user.patronymic,
-                "phoneNumber" to cw.ward.user.phoneNumber,
-                "address" to cw.ward.address
-            )
-        }
+        return curatorWardRepository.findAllByCuratorId(curator.id)
+            .map { it.ward.toSummary() }
     }
 
     /**
@@ -85,7 +74,7 @@ class CuratorWardService(
      * @return данные подопечного
      * @throws IllegalArgumentException если подопечный не найден или не привязан
      */
-    fun getWard(curatorUserId: Long, wardId: Long): Map<String, Any?> {
+    fun getWard(curatorUserId: Long, wardId: Long): WardSummary {
         val curator = curatorRepository.findByUserId(curatorUserId)
             ?: throw IllegalArgumentException("Профиль куратора не найден")
 
@@ -96,16 +85,9 @@ class CuratorWardService(
             throw IllegalArgumentException("Подопечный не привязан к данному куратору")
         }
 
-        return mapOf(
-            "id" to ward.id,
-            "userId" to ward.user.id,
-            "surname" to ward.user.surname,
-            "name" to ward.user.name,
-            "patronymic" to ward.user.patronymic,
-            "phoneNumber" to ward.user.phoneNumber,
-            "address" to ward.address
-        )
+        return ward.toSummary()
     }
+
 
     /**
      * Удаление связи с подопечным.
@@ -131,41 +113,31 @@ class CuratorWardService(
      * @param wardUserId идентификатор пользователя-подопечного из JWT
      * @return список кураторов с их данными
      */
-    fun getCurators(wardUserId: Long): List<Map<String, Any?>> {
+    fun getCurators(wardUserId: Long): List<CuratorSummary> {
         val ward = wardRepository.findByUserId(wardUserId)
             ?: throw IllegalArgumentException("Профиль подопечного не найден")
 
-        return curatorWardRepository.findAllByWardId(ward.id).map { cw ->
-            mapOf(
-                "id" to cw.curator.id,
-                "userId" to cw.curator.user.id,
-                "surname" to cw.curator.user.surname,
-                "name" to cw.curator.user.name,
-                "patronymic" to cw.curator.user.patronymic,
-                "phoneNumber" to cw.curator.user.phoneNumber,
-                "email" to cw.curator.email
-            )
-        }
+        return curatorWardRepository.findAllByWardId(ward.id)
+            .map { it.curator.toSummary() }
     }
 
-    /**
-     * Формирование ответа при создании связи.
-     *
-     * @param curatorWard сущность связи куратор-подопечный
-     */
-    private fun buildWardResponse(curatorWard: CuratorWard): Map<String, Any?> {
-        return mapOf(
-            "id" to curatorWard.id,
-            "curatorId" to curatorWard.curator.id,
-            "ward" to mapOf(
-                "id" to curatorWard.ward.id,
-                "userId" to curatorWard.ward.user.id,
-                "surname" to curatorWard.ward.user.surname,
-                "name" to curatorWard.ward.user.name,
-                "patronymic" to curatorWard.ward.user.patronymic,
-                "phoneNumber" to curatorWard.ward.user.phoneNumber,
-                "address" to curatorWard.ward.address
-            )
-        )
-    }
+    private fun Ward.toSummary(): WardSummary = WardSummary(
+        id = this.id,
+        userId = this.user.id,
+        surname = this.user.surname,
+        name = this.user.name,
+        patronymic = this.user.patronymic,
+        phoneNumber = this.user.phoneNumber,
+        address = this.address
+    )
+
+    private fun Curator.toSummary(): CuratorSummary = CuratorSummary(
+        id = this.id,
+        userId = this.user.id,
+        surname = this.user.surname,
+        name = this.user.name,
+        patronymic = this.user.patronymic,
+        phoneNumber = this.user.phoneNumber,
+        email = this.email
+    )
 }

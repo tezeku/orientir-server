@@ -4,6 +4,10 @@ import org.springframework.security.crypto.password.PasswordEncoder
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import ru.akuzyukhin.orientir.server.common.enum.Role
+import ru.akuzyukhin.orientir.server.user.dto.CuratorProfile
+import ru.akuzyukhin.orientir.server.user.dto.ProfileResponse
+import ru.akuzyukhin.orientir.server.user.dto.UpdateProfileRequest
+import ru.akuzyukhin.orientir.server.user.dto.WardProfile
 import ru.akuzyukhin.orientir.server.user.entity.User
 import ru.akuzyukhin.orientir.server.user.repository.CuratorRepository
 import ru.akuzyukhin.orientir.server.user.repository.UserRepository
@@ -29,61 +33,60 @@ class UserService(
      * @param userId идентификатор пользователя из JWT
      * @return map с данными профиля
      */
-    fun getProfile(userId: Long): Map<String, Any?> {
+    /**
+     * Получение профиля текущего пользователя.
+     *
+     * @param userId идентификатор пользователя из JWT
+     * @return типизированный ProfileResponse
+     */
+    fun getProfile(userId: Long): ProfileResponse {
         val user = findUserById(userId)
 
-        val profile = mutableMapOf<String, Any?>(
-            "id" to user.id,
-            "surname" to user.surname,
-            "name" to user.name,
-            "patronymic" to user.patronymic,
-            "phoneNumber" to user.phoneNumber,
-            "role" to user.role.name,
-            "isActive" to user.isActive
-        )
+        val curatorProfile = if (user.role == Role.CURATOR) {
+            curatorRepository.findByUserId(userId)?.let {
+                CuratorProfile(id = it.id, email = it.email)
+            }
+        } else null
 
-        // Добавление данных роли
-        when (user.role) {
-            Role.CURATOR -> {
-                val curator = curatorRepository.findByUserId(userId)
-                profile["curatorProfile"] = curator?.let {
-                    mapOf("id" to it.id, "email" to it.email)
-                }
+        val wardProfile = if (user.role == Role.WARD) {
+            wardRepository.findByUserId(userId)?.let {
+                WardProfile(id = it.id, address = it.address)
             }
-            Role.WARD -> {
-                val ward = wardRepository.findByUserId(userId)
-                profile["wardProfile"] = ward?.let {
-                    mapOf("id" to it.id, "address" to it.address)
-                }
-            }
-        }
-        return profile
+        } else null
+
+        return ProfileResponse(
+            id = user.id,
+            surname = user.surname,
+            name = user.name,
+            patronymic = user.patronymic,
+            phoneNumber = user.phoneNumber,
+            role = user.role.name,
+            isActive = user.isActive,
+            curatorProfile = curatorProfile,
+            wardProfile = wardProfile
+        )
     }
 
     /**
-     * Обновление профиля.
+     * Частичное обновление профиля.
      *
      * @param userId идентификатор пользователя из JWT
-     * @param updates map с  обновляемыми полями
-     * @return обновленный профиль
+     * @param request данные для обновления (любое подмножество полей)
+     * @return обновлённый профиль
      */
     @Transactional
-    fun updateProfile(userId: Long, updates: Map<String, String?>): Map<String, Any?> {
+    fun updateProfile(userId: Long, request: UpdateProfileRequest): ProfileResponse {
         val user = findUserById(userId)
 
-        // Обновление общих полей
-        updates["surname"]?.let { user.surname = it }
-        updates["name"]?.let { user.name = it }
-        if (updates.containsKey("patronymic")) {
-            user.patronymic = updates["patronymic"]
-        }
+        request.surname?.let { user.surname = it }
+        request.name?.let { user.name = it }
+        request.patronymic?.let { user.patronymic = it }
 
         userRepository.save(user)
 
-        // Обновление полей роли
         when (user.role) {
             Role.CURATOR -> {
-                updates["email"]?.let { email ->
+                request.email?.let { email ->
                     val curator = curatorRepository.findByUserId(userId)
                         ?: throw IllegalStateException("Профиль куратора не найден")
                     curator.email = email
@@ -91,14 +94,15 @@ class UserService(
                 }
             }
             Role.WARD -> {
-                if (updates.containsKey("address")) {
+                request.address?.let { address ->
                     val ward = wardRepository.findByUserId(userId)
                         ?: throw IllegalStateException("Профиль подопечного не найден")
-                    ward.address = updates["address"]
+                    ward.address = address
                     wardRepository.save(ward)
                 }
             }
         }
+
         return getProfile(userId)
     }
 
