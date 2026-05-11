@@ -10,6 +10,7 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder
 import org.springframework.security.crypto.password.PasswordEncoder
 import org.springframework.security.web.SecurityFilterChain
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter
+import ru.akuzyukhin.orientir.server.security.JwtAuthenticationEntryPoint
 import ru.akuzyukhin.orientir.server.security.JwtAuthenticationFilter
 
 /** Конфигурация Spring Security */
@@ -17,7 +18,8 @@ import ru.akuzyukhin.orientir.server.security.JwtAuthenticationFilter
 @EnableWebSecurity
 @EnableScheduling
 class SecurityConfig(
-    private val jwtAuthenticationFilter: JwtAuthenticationFilter
+    private val jwtAuthenticationFilter: JwtAuthenticationFilter,
+    private val jwtAuthenticationEntryPoint: JwtAuthenticationEntryPoint
 ) {
 
     /** Основная цепочка безопасности */
@@ -26,6 +28,9 @@ class SecurityConfig(
         http
             .csrf { it.disable() }
             .sessionManagement { it.sessionCreationPolicy(SessionCreationPolicy.STATELESS) }
+            .exceptionHandling {
+                it.authenticationEntryPoint(jwtAuthenticationEntryPoint)
+            }
             .authorizeHttpRequests { auth ->
                 auth
                     .requestMatchers("/api/v1/auth/**").permitAll()
