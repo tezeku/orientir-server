@@ -5,6 +5,7 @@ import org.springframework.transaction.annotation.Transactional
 import ru.akuzyukhin.orientir.server.common.enum.ExecutionStatus
 import ru.akuzyukhin.orientir.server.common.enum.Importance
 import ru.akuzyukhin.orientir.server.common.enum.NotificationType
+import ru.akuzyukhin.orientir.server.monitoring.dto.TaskExecutionResponse
 import ru.akuzyukhin.orientir.server.notification.service.NotificationService
 import ru.akuzyukhin.orientir.server.task.entity.TaskExecution
 import ru.akuzyukhin.orientir.server.task.repository.TaskExecutionRepository
@@ -29,21 +30,14 @@ class MonitoringService(
     private val curatorWardRepository: CuratorWardRepository
 ) {
 
-    /**
-     * Отметка выполнения задачи.
-     *
-     * @param wardUserId идентификатор пользователя-подопечного из JWT
-     * @param taskExecutionId идентификатор экземпляра задачи
-     * @return данные обновленного экземпляра
-     */
+    /** Отметка выполнения задачи */
     @Transactional
-    fun complete(wardUserId: Long, taskExecutionId: Long): Map<String, Any?> {
+    fun complete(wardUserId: Long, taskExecutionId: Long): TaskExecutionResponse {
         val execution = findAndValidateExecution(wardUserId, taskExecutionId)
 
         val now = LocalDateTime.now()
         val deviationMinutes = Duration.between(execution.scheduledDateTime, now).toMinutes().toInt()
-        val windowMinutes = execution.task.windowMinutes
-        val isWithinWindow = abs(deviationMinutes) <= windowMinutes
+        val isWithinWindow = abs(deviationMinutes) <= execution.task.windowMinutes
 
         execution.executionTime = now
         execution.deviationMinutes = deviationMinutes
@@ -51,50 +45,33 @@ class MonitoringService(
         execution.status = if (isWithinWindow) ExecutionStatus.COMPLETED else ExecutionStatus.COMPLETED_LATE
 
         taskExecutionRepository.save(execution)
-        return buildResponse(execution)
+        return execution.toResponse()
     }
 
-
-    /**
-     * Осознанный пропуск выполнения задачи.
-     *
-     * @param wardUserId идентификатор пользователя-подопечного из JWT
-     * @param taskExecutionId идентификатор экземпляра задачи
-     * @return данные обновленного экземпляра
-     * @throws IllegalArgumentException если важность не LOW
-     */
+    /** Осознанный пропуск выполнения задачи */
     @Transactional
-    fun skip(wardUserId: Long, taskExecutionId: Long): Map<String, Any?> {
+    fun skip(wardUserId: Long, taskExecutionId: Long): TaskExecutionResponse {
         val execution = findAndValidateExecution(wardUserId, taskExecutionId)
 
         if (execution.task.importance != Importance.LOW) {
             throw IllegalArgumentException(
-                "Пропуск доступен только для задач с низкой важностью. " +
-                "Используйте блокировку"
+                "Пропуск доступен только для задач с низкой важностью. Используйте блокировку."
             )
         }
 
         execution.status = ExecutionStatus.SKIPPED
         taskExecutionRepository.save(execution)
-        return buildResponse(execution)
+        return execution.toResponse()
     }
 
-    /**
-     *  Блокировка задачи - подопечный сообщает о невозможности выполнения.
-     *
-     *  @param wardUserId идентификатор пользователя-подопечного из JWT
-     *  @param taskExecutionid идентификатор экземпляра задачи
-     *  @param comment комментарий подопечного (опционально)
-     *  @return данные обновленного экземпляра
-     */
+    /** Блокировка задачи - подопечный сообщает о невозможности выполнения */
     @Transactional
-    fun block(wardUserId: Long, taskExecutionId: Long, comment: String?): Map<String, Any?> {
+    fun block(wardUserId: Long, taskExecutionId: Long, comment: String?): TaskExecutionResponse {
         val execution = findAndValidateExecution(wardUserId, taskExecutionId)
 
         execution.status = ExecutionStatus.BLOCKED
         taskExecutionRepository.save(execution)
 
-        // Отправка уведомления всем кураторам подопечного
         val ward = wardRepository.findByUserId(wardUserId)!!
         val curatorLinks = curatorWardRepository.findAllByWardId(ward.id)
 
@@ -110,8 +87,7 @@ class MonitoringService(
             )
         }
 
-        return buildResponse(execution)
-
+        return execution.toResponse()
     }
 
     /**
@@ -119,10 +95,7 @@ class MonitoringService(
      * - сущестования;
      * - принадлежности подопечности;
      * - статусу "не обработан".
-     *
-     * @param wardUserId идентификатор пользователя-подопечного из JWT
-     * @param taskExecutionid идентификатор экземпляра задачи
-     */
+     * */
     private fun findAndValidateExecution(wardUserId: Long, taskExecutionId: Long): TaskExecution {
         val ward = wardRepository.findByUserId(wardUserId)
             ?: throw IllegalArgumentException("Профиль подопечного не найден")
@@ -130,12 +103,10 @@ class MonitoringService(
         val execution = taskExecutionRepository.findById(taskExecutionId)
             .orElseThrow { IllegalArgumentException("Экземпляр задачи не найден") }
 
-        // Проверка принадлежности подопечному
         if (execution.task.schedule.ward.id != ward.id) {
             throw IllegalArgumentException("Задача не принадлежит текущему подопечному")
         }
 
-        // Проверка что задача не является обработанной
         if (execution.status != ExecutionStatus.PENDING) {
             throw IllegalStateException("Задача уже обработана (статус: ${execution.status})")
         }
@@ -143,21 +114,15 @@ class MonitoringService(
         return execution
     }
 
-    /**
-     * Формирование ответа с данными экземпляра задачи.
-     *
-     * @param taskExecution экземпляр задачи
-     */
-    private fun buildResponse(execution: TaskExecution): Map<String, Any?> {
-        return mapOf(
-            "id" to execution.id,
-            "taskId" to execution.task.id,
-            "scheduledDatetime" to execution.scheduledDateTime.toString(),
-            "executionTime" to execution.executionTime?.toString(),
-            "status" to execution.status.name,
-            "deviationMinutes" to execution.deviationMinutes,
-            "isWithinWindow" to execution.isWithinWindow
+    /** Маппинг TaskExecution в TaskExecutionResponse */
+    private fun TaskExecution.toResponse() = TaskExecutionResponse(
+        id = id,
+        taskId = task.id,
+        scheduledDateTime = scheduledDateTime,
+        executionTime = executionTime,
+        status = status,
+        deviationMinutes = deviationMinutes,
+        isWithinWindow = isWithinWindow
+    )
 
-        )
-    }
 }

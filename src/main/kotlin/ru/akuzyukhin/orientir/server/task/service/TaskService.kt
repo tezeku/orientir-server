@@ -5,9 +5,12 @@ import org.dmfs.rfc5545.recur.RecurrenceRule
 import org.dmfs.rfc5545.recur.RecurrenceRuleIterator
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
-import ru.akuzyukhin.orientir.server.common.enum.Importance
-import ru.akuzyukhin.orientir.server.common.enum.TaskType
 import ru.akuzyukhin.orientir.server.schedule.repository.ScheduleRepository
+import ru.akuzyukhin.orientir.server.task.dto.CreateTaskRequest
+import ru.akuzyukhin.orientir.server.task.dto.DailyTaskInfo
+import ru.akuzyukhin.orientir.server.task.dto.DailyTaskResponse
+import ru.akuzyukhin.orientir.server.task.dto.TaskResponse
+import ru.akuzyukhin.orientir.server.task.dto.UpdateTaskRequest
 import ru.akuzyukhin.orientir.server.task.entity.Task
 import ru.akuzyukhin.orientir.server.task.entity.TaskExecution
 import ru.akuzyukhin.orientir.server.task.repository.TaskExecutionRepository
@@ -20,12 +23,7 @@ import java.time.LocalDateTime
 import java.time.LocalTime
 import java.util.TimeZone
 
-/**
- * Сервис управления задачами.
- * - CRUD задач в расписании (куратор);
- * - генерация экземпляров задач на дату (разворачивание RRULE);
- * - просмотр задач подопечным.
- */
+/** Сервис управления задачами */
 @Service
 class TaskService(
     private val taskRepository: TaskRepository,
@@ -36,81 +34,45 @@ class TaskService(
     private val curatorWardRepository: CuratorWardRepository
 ) {
 
-    /**
-     * Создание задачи в расписании.
-     *
-     * @param curatorUserId идентификатор пользователя-куратора из JWT
-     * @param wardId идентификатор подопечного
-     * @param scheduleId идентификатор расписания
-     * @param request параметры задачи
-     * @return данные созданной задачи
-     */
+    /** Создание задачи в расписании */
     @Transactional
     fun create(
         curatorUserId: Long,
         wardId: Long,
         scheduleId: Long,
-        request: Map<String, String>
-    ): Map<String, Any?> {
+        request: CreateTaskRequest
+    ): TaskResponse {
         validateCuratorWardAccess(curatorUserId, wardId)
         val schedule = findScheduleByIdAndWard(scheduleId, wardId)
 
-        val name = request["name"]
-            ?: throw IllegalArgumentException("Название задачи не может быть пустым")
-        val type = parseTaskType(request["type"])
-        val importance = parseImportance(request["importance"])
-        val rrule = request["rrule"]
-            ?: throw IllegalArgumentException("Правило повторения не может быть пустым")
-        val scheduledTime = parseTime(request["scheduledTime"])
-        val windowMinutes = request["windowMinutes"]?.toIntOrNull()
-            ?: throw IllegalArgumentException("Временное окно не может быть пустым и должно быть числом")
-
-        // Валидация RRULE
-        try {
-            RecurrenceRule(rrule)
-        } catch (e: Exception) {
-            throw IllegalArgumentException("Невалидное правило повторения RRULE: $rrule")
-        }
+        validateRrule(request.rrule)
 
         val task = taskRepository.save(
             Task(
                 schedule = schedule,
-                name = name,
-                type = type,
-                importance = importance,
-                rrule = rrule,
-                scheduledTime = scheduledTime,
-                windowMinutes = windowMinutes
+                name = request.name,
+                type = request.type,
+                importance = request.importance,
+                rrule = request.rrule,
+                scheduledTime = request.scheduledTime,
+                windowMinutes = request.windowMinutes
             )
         )
-
-        return buildTaskResponse(task)
+        return task.toResponse()
     }
 
-    /** Получение списка задач расписания (для куратора) */
-    fun getAllBySchedule(
-        curatorUserId: Long,
-        wardId: Long,
-        scheduleId: Long
-    ): List<Map<String, Any?>> {
+    /** Получение списка задач расписания */
+    fun getAllBySchedule(curatorUserId: Long, wardId: Long, scheduleId: Long): List<TaskResponse> {
         validateCuratorWardAccess(curatorUserId, wardId)
         findScheduleByIdAndWard(scheduleId, wardId)
-
-        return taskRepository.findAllByScheduleId(scheduleId).map { buildTaskResponse(it) }
+        return taskRepository.findAllByScheduleId(scheduleId).map { it.toResponse() }
     }
 
-    /** Получение конкретной задачи (для куратора) */
-    fun getOne(
-        curatorUserId: Long,
-        wardId: Long,
-        scheduleId: Long,
-        taskId: Long
-    ): Map<String, Any?> {
+    /** Получение конкретной задачи */
+    fun getOne(curatorUserId: Long, wardId: Long, scheduleId: Long, taskId: Long): TaskResponse {
         validateCuratorWardAccess(curatorUserId, wardId)
         findScheduleByIdAndWard(scheduleId, wardId)
-
-        val task = findTaskByIdAndSchedule(taskId, scheduleId)
-        return buildTaskResponse(task)
+        return findTaskByIdAndSchedule(taskId, scheduleId).toResponse()
     }
 
     /** Частичное обновление задачи */
@@ -120,32 +82,25 @@ class TaskService(
         wardId: Long,
         scheduleId: Long,
         taskId: Long,
-        updates: Map<String, String>
-    ): Map<String, Any?> {
+        request: UpdateTaskRequest
+    ): TaskResponse {
         validateCuratorWardAccess(curatorUserId, wardId)
         findScheduleByIdAndWard(scheduleId, wardId)
 
         val task = findTaskByIdAndSchedule(taskId, scheduleId)
 
-        updates["name"]?.let { task.name = it }
-        updates["type"]?.let { task.type = parseTaskType(it) }
-        updates["importance"]?.let { task.importance = parseImportance(it) }
-        updates["rrule"]?.let { rrule ->
-            try {
-                RecurrenceRule(rrule)
-            } catch(e: Exception) {
-                throw IllegalArgumentException("Невалидное правило повторения RRULE: $rrule")
-            }
-            task.rrule = rrule
+        request.name?.let { task.name = it }
+        request.type?.let { task.type = it }
+        request.importance?.let { task.importance = it }
+        request.rrule?.let {
+            validateRrule(it)
+            task.rrule = it
         }
-        updates["scheduledTime"]?.let { task.scheduledTime = parseTime(it) }
-        updates["windowMinutes"]?.let {
-            task.windowMinutes = it.toIntOrNull()
-                ?: throw IllegalArgumentException("Временное окно должно быть числом")
-        }
+        request.scheduledTime?.let { task.scheduledTime = it }
+        request.windowMinutes?.let { task.windowMinutes = it }
 
         taskRepository.save(task)
-        return buildTaskResponse(task)
+        return task.toResponse()
     }
 
     /** Удаление задачи */
@@ -153,120 +108,96 @@ class TaskService(
     fun delete(curatorUserId: Long, wardId: Long, scheduleId: Long, taskId: Long) {
         validateCuratorWardAccess(curatorUserId, wardId)
         findScheduleByIdAndWard(scheduleId, wardId)
-
         val task = findTaskByIdAndSchedule(taskId, scheduleId)
         taskRepository.delete(task)
     }
 
-    /**
-     * Генерация экземпляров задач на дату.
-     *
-     * @param wardId идентификатор подпоечного
-     * @param date дата для генерации
-     * @return список экземпляров задач с текущими статусами
-     */
-    @Transactional
-    fun getDailyTasks(wardId: Long, date: LocalDate): List<Map<String, Any?>> {
-        val tasks = taskRepository.findAllByScheduleWardId(wardId)
-        val dayStart = date.atStartOfDay()
-        val dayEnd = date.atTime(23, 59, 59)
-
-        val result = mutableListOf<Map<String, Any?>>()
-
-        for (task in tasks) {
-            // Проверка попадания задачи на указанную дату
-            if (taskOccursOnDate(task, date)) {
-                val scheduleDateTime = LocalDateTime.of(date, task.scheduledTime)
-
-                // Поиск существующего экземпляра или создание нового
-                val execution = if (taskExecutionRepository.existsByTaskIdAndScheduledDateTime(
-                    task.id, scheduleDateTime
-                )) {
-                    // Поиск существующего
-                    taskExecutionRepository
-                        .findAllByTaskIdInAndScheduledDateTimeBetween(
-                            listOf(task.id), dayStart, dayEnd
-                        )
-                        .first { it.scheduledDateTime == scheduleDateTime }
-                } else {
-                    // Создание нового экземпляра
-                    taskExecutionRepository.save(
-                        TaskExecution(
-                            task = task,
-                            scheduledDateTime = scheduleDateTime,
-                        )
-                    )
-                }
-
-                result.add(buildDailyTaskResponse(execution))
-            }
-        }
-
-        // Сортировка по времени
-        return result.sortedBy { it["scheduleDateTime"] as String }
-    }
-
-    /** Получение задач на день для куратора */
-    fun getDailyTasksForCurator(
-        curatorUserId: Long,
-        wardId: Long,
-        date: LocalDate
-    ): List<Map<String, Any?>> {
+    /** Получение задач подопечного на день куратором */
+    fun getDailyTasksForCurator(curatorUserId: Long, wardId: Long, date: LocalDate): List<DailyTaskResponse> {
         validateCuratorWardAccess(curatorUserId, wardId)
         return getDailyTasks(wardId, date)
     }
 
-    /** Получение задач на день для подопечного */
-    fun getDailyTasksForWard(wardUserId: Long, date: LocalDate): List<Map<String, Any?>> {
+    /** Получение задач на день подопечным */
+    fun getDailyTasksForWard(wardUserId: Long, date: LocalDate): List<DailyTaskResponse> {
         val ward = wardRepository.findByUserId(wardUserId)
             ?: throw IllegalArgumentException("Профиль подопечного не найден")
         return getDailyTasks(ward.id, date)
     }
 
-    /** Получение конкретной задачи для подопечного */
-    fun getTaskForWard(wardUserId: Long, scheduleId: Long, taskId: Long): Map<String, Any?> {
+    /** Получение конкретной задачи подопечным */
+    fun getTaskForWard(wardUserId: Long, scheduleId: Long, taskId: Long): TaskResponse {
         val ward = wardRepository.findByUserId(wardUserId)
             ?: throw IllegalArgumentException("Профиль подопечного не найден")
 
         val schedule = scheduleRepository.findById(scheduleId)
-            .orElseThrow { IllegalArgumentException("Расписание не найден") }
+            .orElseThrow { IllegalArgumentException("Расписание не найдено") }
 
         if (schedule.ward.id != ward.id) {
             throw IllegalArgumentException("Расписание не принадлежит подопечному")
         }
 
-        val task = findTaskByIdAndSchedule(taskId, scheduleId)
-        return buildTaskResponse(task)
+        return findTaskByIdAndSchedule(taskId, scheduleId).toResponse()
     }
 
-        // Вспомогательные методы:
+    /** Lazy-генерация экземпляров задач на дату */
+    @Transactional
+    private fun getDailyTasks(wardId: Long, date: LocalDate): List<DailyTaskResponse> {
+        val tasks = taskRepository.findAllByScheduleWardId(wardId)
+        val dayStart = date.atStartOfDay()
+        val dayEnd = date.atTime(23, 59, 59)
+        val result = mutableListOf<DailyTaskResponse>()
 
-        /** Проверка попадания задачи на указанную дату по правилу */
+        for (task in tasks) {
+            if (!taskOccursOnDate(task, date)) continue
+
+            val scheduledDateTime = LocalDateTime.of(date, task.scheduledTime)
+
+            val execution = if (taskExecutionRepository.existsByTaskIdAndScheduledDateTime(
+                    task.id, scheduledDateTime
+                )) {
+                taskExecutionRepository
+                    .findAllByTaskIdInAndScheduledDateTimeBetween(
+                        listOf(task.id), dayStart, dayEnd
+                    )
+                    .first { it.scheduledDateTime == scheduledDateTime }
+            } else {
+                taskExecutionRepository.save(
+                    TaskExecution(task = task, scheduledDateTime = scheduledDateTime)
+                )
+            }
+
+            result.add(execution.toDailyResponse())
+        }
+
+        return result.sortedBy { it.scheduledDateTime }
+    }
+
+    /** Проверка валидности RRULE */
+    private fun validateRrule(rrule: String) {
+        try {
+            RecurrenceRule(rrule)
+        } catch (e: Exception) {
+            throw IllegalArgumentException("Невалидное правило повторения RRULE: $rrule")
+        }
+    }
+
+    /** Проверка попадания задачи на указанную дату по RRULE */
     private fun taskOccursOnDate(task: Task, date: LocalDate): Boolean {
         return try {
             val rule = RecurrenceRule(task.rrule)
+            val startDate = date.minusMonths(1)
             val start = DateTime(
                 TimeZone.getDefault(),
-                date.minusMonths(1).year,
-                date.minusMonths(1).monthValue - 1,
-                date.minusMonths(1).dayOfMonth,
+                startDate.year,
+                startDate.monthValue - 1,
+                startDate.dayOfMonth,
                 task.scheduledTime.hour,
                 task.scheduledTime.minute,
                 task.scheduledTime.second
             )
 
             val iterator: RecurrenceRuleIterator = rule.iterator(start)
-            val targetTimestamp = DateTime(
-                TimeZone.getDefault(),
-                date.year,
-                date.monthValue - 1,
-                date.dayOfMonth,
-                task.scheduledTime.hour,
-                task.scheduledTime.minute,
-                task.scheduledTime.second
-            ).timestamp
-
-            // Перебор дат до целевой + 1 день
             val limit = date.plusDays(1).atStartOfDay()
                 .atZone(TimeZone.getDefault().toZoneId()).toInstant().toEpochMilli()
 
@@ -281,12 +212,11 @@ class TaskService(
                 }
             }
             false
-        } catch(e: Exception) {
+        } catch (e: Exception) {
             false
         }
     }
 
-    /** Проверка доступа куратора к подопечному */
     private fun validateCuratorWardAccess(curatorUserId: Long, wardId: Long) {
         val curator = curatorRepository.findByUserId(curatorUserId)
             ?: throw IllegalArgumentException("Профиль куратора не найден")
@@ -296,16 +226,14 @@ class TaskService(
         }
     }
 
-    /** Поиск расписания с проверкой принадлежности подопечному */
     private fun findScheduleByIdAndWard(scheduleId: Long, wardId: Long) =
         scheduleRepository.findById(scheduleId)
-            .orElseThrow { IllegalArgumentException("Расписание не найден") }
+            .orElseThrow { IllegalArgumentException("Расписание не найдено") }
             .also {
                 if (it.ward.id != wardId)
                     throw IllegalArgumentException("Расписание не принадлежит подопечному")
             }
 
-    /** Поиск задачи с проверкой принадлежности расписанию */
     private fun findTaskByIdAndSchedule(taskId: Long, scheduleId: Long): Task {
         val task = taskRepository.findById(taskId)
             .orElseThrow { IllegalArgumentException("Задача не найдена") }
@@ -313,68 +241,36 @@ class TaskService(
         if (task.schedule.id != scheduleId) {
             throw IllegalArgumentException("Задача не принадлежит данному расписанию")
         }
-
         return task
     }
 
-    /** Парсинг типа задачи из строки */
-    private fun parseTaskType(value: String?): TaskType {
-        return try {
-            TaskType.valueOf((value ?: throw IllegalArgumentException("Тип задачи не может быть пустым")).uppercase())
-        } catch (e: IllegalArgumentException) {
-            throw IllegalArgumentException("Невалидный тип задачи: $value. Допустимые: ${TaskType.entries.joinToString()}")
-        }
-    }
+    /** Маппинг Task в TaskResponse */
+    private fun Task.toResponse() = TaskResponse(
+        id = id,
+        scheduleId = schedule.id,
+        name = name,
+        type = type,
+        importance = importance,
+        rrule = rrule,
+        scheduledTime = scheduledTime,
+        windowMinutes = windowMinutes
+    )
 
-    /** Парсинг важности из строки */
-    private fun parseImportance(value: String?): Importance {
-        return try {
-            Importance.valueOf((value ?: throw IllegalArgumentException("Необходимо указать важность")).uppercase())
-        } catch (e: IllegalArgumentException) {
-            throw IllegalArgumentException("Невалидная важность: $value. Допустимые: ${Importance.entries.joinToString()}")
-        }
-    }
-
-    /** Парсинг времени из строки */
-    private fun parseTime(value: String?): LocalTime {
-        return try {
-            LocalTime.parse(value ?: throw IllegalArgumentException("Необходимо указать время выполнения"))
-        } catch (e: Exception) {
-            throw IllegalArgumentException("Невалидный формат времени: $value. Ожидается HH:MM")
-        }
-    }
-
-    /** Формирование ответа для задачи-шаблона */
-    private fun buildTaskResponse(task: Task): Map<String, Any?> {
-        return mapOf(
-            "id" to task.id,
-            "scheduleId" to task.schedule.id,
-            "name" to task.name,
-            "type" to task.type.name,
-            "importance" to task.importance.name,
-            "rrule" to task.rrule,
-            "scheduledTime" to task.scheduledTime.toString(),
-            "windowMinutes" to task.windowMinutes
-        )
-    }
-
-    /** Формирование ответа для экземпляра задачи на день */
-    private fun buildDailyTaskResponse(execution: TaskExecution): Map<String, Any?> {
-        return mapOf(
-            "taskExecutionId" to execution.id,
-            "task" to mapOf(
-                "id" to execution.task.id,
-                "name" to execution.task.name,
-                "type" to execution.task.type.name,
-                "importance" to execution.task.importance.name,
-                "windowMinutes" to execution.task.windowMinutes
-            ),
-            "scheduleName" to execution.task.schedule.name,
-            "scheduleDateTime" to execution.scheduledDateTime.toString(),
-            "status" to execution.status.name,
-            "executionTime" to execution.executionTime?.toString(),
-            "deviationMinutes" to execution.deviationMinutes,
-            "isWithinWindow" to execution.isWithinWindow
-        )
-    }
+    /** Маппинг TaskExecution в DailyTaskResponse. */
+    private fun TaskExecution.toDailyResponse() = DailyTaskResponse(
+        taskExecutionId = id,
+        task = DailyTaskInfo(
+            id = task.id,
+            name = task.name,
+            type = task.type,
+            importance = task.importance,
+            windowMinutes = task.windowMinutes
+        ),
+        scheduleName = task.schedule.name,
+        scheduledDateTime = scheduledDateTime,
+        status = status,
+        executionTime = executionTime,
+        deviationMinutes = deviationMinutes,
+        isWithinWindow = isWithinWindow
+    )
 }

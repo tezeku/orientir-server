@@ -8,5 +8,5 @@ data class AddWardRequest(
 
     @field:NotBlank(message = "Номер телефона подопечного обязателен")
     @field:Size(max = 16, message = "Номер телефона не должен превышать 16 символов")
-    val wardPhoneNumber: String
+    val phoneNumber: String
 )

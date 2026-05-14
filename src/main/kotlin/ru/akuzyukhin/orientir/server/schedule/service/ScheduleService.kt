@@ -2,6 +2,9 @@ package ru.akuzyukhin.orientir.server.schedule.service
 
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
+import ru.akuzyukhin.orientir.server.schedule.dto.CreateScheduleRequest
+import ru.akuzyukhin.orientir.server.schedule.dto.ScheduleResponse
+import ru.akuzyukhin.orientir.server.schedule.dto.UpdateScheduleRequest
 import ru.akuzyukhin.orientir.server.schedule.entity.Schedule
 import ru.akuzyukhin.orientir.server.schedule.repository.ScheduleRepository
 import ru.akuzyukhin.orientir.server.user.repository.CuratorRepository
@@ -34,21 +37,16 @@ class ScheduleService(
      * @return данные созданного расписания
      */
     @Transactional
-    fun create(curatorUserId: Long, wardId: Long, name: String): Map<String, Any?> {
+    fun create(curatorUserId: Long, wardId: Long, request: CreateScheduleRequest): ScheduleResponse {
         validateCuratorWardAccess(curatorUserId, wardId)
 
         val ward = wardRepository.findById(wardId)
             .orElseThrow { IllegalArgumentException("Подопечный не найден") }
 
-        if (name.isBlank()) {
-            throw IllegalArgumentException("Назване расписания не может быть пустым")
-        }
-
         val schedule = scheduleRepository.save(
-            Schedule(name = name, ward = ward)
+            Schedule(name = request.name, ward = ward)
         )
-
-        return buildResponse(schedule)
+        return schedule.toResponse()
     }
 
     /**
@@ -58,10 +56,9 @@ class ScheduleService(
      * @param wardId идентификатор подопечного
      * @return список расписаний
      */
-    fun getAllByWard(curatorUserId: Long, wardId: Long): List<Map<String, Any?>> {
+    fun getAllByWard(curatorUserId: Long, wardId: Long): List<ScheduleResponse> {
         validateCuratorWardAccess(curatorUserId, wardId)
-
-        return scheduleRepository.findAllByWardId(wardId).map { buildResponse(it) }
+        return scheduleRepository.findAllByWardId(wardId).map { it.toResponse() }
     }
 
     /**
@@ -72,86 +69,50 @@ class ScheduleService(
      * @param scheduleId идентификатор расписания
      * @return данные расписания
      */
-    fun getOne(curatorUserId: Long, wardId: Long, scheduleId: Long): Map<String, Any?> {
+    fun getOne(curatorUserId: Long, wardId: Long, scheduleId: Long): ScheduleResponse {
         validateCuratorWardAccess(curatorUserId, wardId)
-
-        val schedule = findScheduleByIdAndWard(scheduleId, wardId)
-        return buildResponse(schedule)
+        return findScheduleByIdAndWard(scheduleId, wardId).toResponse()
     }
 
-    /**
-     * Обновление расписания.
-     *
-     * @param curatorUserId идентификатор пользователя-куратора из JWT
-     * @param wardId идентификатор подопечного
-     * @param scheduled идентификатор расписания
-     * @param name новое название
-     * @return обновленные данные расписания
-     */
+    /** Обновление расписания */
     @Transactional
-    fun update(curatorUserId: Long, wardId: Long, scheduleId: Long, name: String): Map<String, Any?> {
+    fun update(
+        curatorUserId: Long,
+        wardId: Long,
+        scheduleId: Long,
+        request: UpdateScheduleRequest
+    ): ScheduleResponse {
         validateCuratorWardAccess(curatorUserId, wardId)
 
         val schedule = findScheduleByIdAndWard(scheduleId, wardId)
-
-        if (name.isBlank()) {
-            throw IllegalArgumentException("Название расписания не может быть пустым")
-        }
-
-        schedule.name = name
+        schedule.name = request.name
         scheduleRepository.save(schedule)
-
-        return buildResponse(schedule)
+        return schedule.toResponse()
     }
 
-    /**
-     * Удаление расписания.
-     *
-     * @param curatorUserId идентификатор пользователя-куратора из JWT
-     * @param wardId идентификатор подопечного
-     * @param scheduleId идентификатор расписания
-     */
+    /** Удаление расписания */
     @Transactional
     fun delete(curatorUserId: Long, wardId: Long, scheduleId: Long) {
         validateCuratorWardAccess(curatorUserId, wardId)
-
         val schedule = findScheduleByIdAndWard(scheduleId, wardId)
         scheduleRepository.delete(schedule)
     }
 
-    /**
-     * Получение списка расписаний для подопечного.
-     *
-     * @param wardUserId идентификатор пользовтаеля-подопечного из JWT
-     * @return список расписаний
-     */
-    fun getMySchedules(wardUserId: Long): List<Map<String, Any?>> {
+    /** Получение списка расписаний для подопечного */
+    fun getMySchedules(wardUserId: Long): List<ScheduleResponse> {
         val ward = wardRepository.findByUserId(wardUserId)
             ?: throw IllegalArgumentException("Профиль подопечного не найден")
-
-        return scheduleRepository.findAllByWardId(ward.id).map { buildResponse(it) }
+        return scheduleRepository.findAllByWardId(ward.id).map { it.toResponse() }
     }
 
-    /**
-     * Получение конкретного расписания подопечным.
-     *
-     * @param wardUserId идентификатор пользователя-подопечного из JWT
-     * @param scheduleId идентификатор расписания
-     * @return данные расписания
-     */
-    fun  getMySchedule(wardUserId: Long, scheduleId: Long): Map<String, Any?> {
+    /** Получение конкретного расписания подопечным */
+    fun getMySchedule(wardUserId: Long, scheduleId: Long): ScheduleResponse {
         val ward = wardRepository.findByUserId(wardUserId)
             ?: throw IllegalArgumentException("Профиль подопечного не найден")
-
-        val schedule = findScheduleByIdAndWard(scheduleId, ward.id)
-        return buildResponse(schedule)
+        return findScheduleByIdAndWard(scheduleId, ward.id).toResponse()
     }
 
-    /**
-     * Проверка что куратора привязан к подопечному.
-     *
-     * @throws IllegalArgumentException если куратор не найден или не привязан
-     */
+    /** Проверка что куратора привязан к подопечному */
     private fun validateCuratorWardAccess(curatorUserId: Long, wardId: Long) {
         val curator = curatorRepository.findByUserId(curatorUserId)
             ?: throw IllegalArgumentException("Профиль куратора не найден")
@@ -161,11 +122,7 @@ class ScheduleService(
         }
     }
 
-    /**
-     * Поиск расписания по id с проверкой принадлежности подопечному.
-     *
-     * @throws IllegalArgumentException если расписание не найдено или не принадлежит подопечному
-     */
+    /** Поиск расписания по id с проверкой принадлежности подопечному */
     private fun findScheduleByIdAndWard(scheduleId: Long, wardId: Long): Schedule {
         val schedule = scheduleRepository.findById(scheduleId)
             .orElseThrow { IllegalArgumentException("Расписание не найдено") }
@@ -173,20 +130,13 @@ class ScheduleService(
         if (schedule.ward.id != wardId) {
             throw IllegalArgumentException("Расписание не принадлежит данному подопечному")
         }
-
         return schedule
     }
 
-    /**
-     * Формирование ответа с данными расписания.
-     *
-     * @param schedule расписание
-     */
-    private fun buildResponse(schedule: Schedule): Map<String, Any?> {
-        return mapOf(
-            "id" to schedule.id,
-            "name" to schedule.name,
-            "wardId" to schedule.ward.id
-        )
-    }
+    /** Маппинг Schedule в ScheduleResponse */
+    private fun Schedule.toResponse() = ScheduleResponse(
+        id = id,
+        name = name,
+        wardId = ward.id
+    )
 }

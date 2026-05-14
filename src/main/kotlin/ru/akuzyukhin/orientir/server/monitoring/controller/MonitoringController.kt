@@ -1,5 +1,6 @@
 package ru.akuzyukhin.orientir.server.monitoring.controller
 
+import jakarta.validation.Valid
 import org.antlr.v4.runtime.atn.ATN
 import org.springframework.http.ResponseEntity
 import org.springframework.security.core.Authentication
@@ -8,6 +9,8 @@ import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RestController
+import ru.akuzyukhin.orientir.server.monitoring.dto.BlockExecutionRequest
+import ru.akuzyukhin.orientir.server.monitoring.dto.TaskExecutionResponse
 import ru.akuzyukhin.orientir.server.monitoring.service.MonitoringService
 
 /**
@@ -21,54 +24,34 @@ class MonitoringController(
     private val monitoringService: MonitoringService
 ) {
 
-    /**
-     * Отметка выполнения задачи.
-     *
-     * @param authentication объект аутентификации из SecurityContext
-     * @param taskExecutionId идентификатор экземпляра задачи
-     * @return 200 OK с обновленными данными
-     */
+    /** Отметка выполнения задачи */
     @PostMapping("/{taskExecutionId}/complete")
     fun complete(
         authentication: Authentication,
         @PathVariable taskExecutionId: Long
-    ): ResponseEntity<Map<String, Any?>> {
+    ): ResponseEntity<TaskExecutionResponse> {
         val userId = authentication.principal as Long
         return ResponseEntity.ok(monitoringService.complete(userId, taskExecutionId))
     }
 
-    /**
-     * Осознанные пропуск задачи.
-     *
-     * @param authentication объект аутентификации из SecurityContext
-     * @param taskExecutionId идентификатор экземпляра задачи
-     * @return 200 OK с обновленными данными
-     */
+    /** Осознанные пропуск задачи */
     @PostMapping("/{taskExecutionId}/skip")
     fun skip(
         authentication: Authentication,
         @PathVariable taskExecutionId: Long
-    ): ResponseEntity<Map<String, Any?>> {
+    ): ResponseEntity<TaskExecutionResponse> {
         val userId = authentication.principal as Long
         return ResponseEntity.ok(monitoringService.skip(userId, taskExecutionId))
     }
 
-    /**
-     * Сообщение о невозможности выполнения.
-     *
-     * @param authentication объект аутентификации из SecurityContext
-     * @param taskExecutionId идентификатор экземпляра задачи
-     * @param request map с опциональным полем
-     * @return 200 OK с обновленными данными
-     */
+    /** Сообщение о невозможности выполнения */
     @PostMapping("/{taskExecutionId}/block")
     fun block(
         authentication: Authentication,
         @PathVariable taskExecutionId: Long,
-        @RequestBody(required = false) request: Map<String, String>?
-    ): ResponseEntity<Map<String, Any?>> {
+        @Valid @RequestBody(required = false) request: BlockExecutionRequest?
+    ): ResponseEntity<TaskExecutionResponse> {
         val userId = authentication.principal as Long
-        val comment = request?.get("comment")
-        return ResponseEntity.ok(monitoringService.block(userId, taskExecutionId, comment))
+        return ResponseEntity.ok(monitoringService.block(userId, taskExecutionId, request?.comment))
     }
 }

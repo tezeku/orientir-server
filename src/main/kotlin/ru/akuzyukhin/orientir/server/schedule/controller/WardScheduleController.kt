@@ -6,6 +6,7 @@ import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RestController
+import ru.akuzyukhin.orientir.server.schedule.dto.ScheduleResponse
 import ru.akuzyukhin.orientir.server.schedule.service.ScheduleService
 
 /**
@@ -19,32 +20,19 @@ class WardScheduleController(
     private val scheduleService: ScheduleService
 ) {
 
-    /**
-     * Получение списка своих расписаний.
-     *
-     * @param authentication объект аутентификации из SecurityContext
-     * @return 200 OK со списком расписаний
-     */
+    /** Получение списка своих расписаний */
     @GetMapping
-    fun getMySchedules(
-        authentication: Authentication
-    ): ResponseEntity<List<Map<String, Any?>>> {
+    fun getMySchedules(authentication: Authentication): ResponseEntity<List<ScheduleResponse>> {
         val userId = authentication.principal as Long
         return ResponseEntity.ok(scheduleService.getMySchedules(userId))
     }
 
-    /**
-     * Просмотр конкретного расписания.
-     *
-     * @param authentication объект аутентификации из SecurityContext
-     * @param scheduleId идентификатор расписания
-     * @return 200 OK с данными расписания
-     */
+    /** Просмотр конкретного расписания */
     @GetMapping("/{scheduleId}")
     fun getMySchedule(
         authentication: Authentication,
         @PathVariable scheduleId: Long
-    ): ResponseEntity<Map<String, Any?>> {
+    ): ResponseEntity<ScheduleResponse> {
         val userId = authentication.principal as Long
         return ResponseEntity.ok(scheduleService.getMySchedule(userId, scheduleId))
     }

@@ -7,6 +7,8 @@ import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RequestParam
 import org.springframework.web.bind.annotation.RestController
+import ru.akuzyukhin.orientir.server.task.dto.DailyTaskResponse
+import ru.akuzyukhin.orientir.server.task.dto.TaskResponse
 import ru.akuzyukhin.orientir.server.task.service.TaskService
 import java.time.LocalDate
 
@@ -22,37 +24,24 @@ class WardTaskController(
     private val taskService: TaskService
 ) {
 
-    /**
-     * Получение задач на день для подопечного.
-     *
-     * @param authentication объект аутентификации из SecurityContext
-     * @param date дата
-     * @return 200 OK со списком экземпляров задач
-     */
+    /** Получение задач на день для подопечного */
     @GetMapping("/tasks/daily")
     fun getDailyTasks(
         authentication: Authentication,
         @RequestParam(required = false) date: String?
-    ): ResponseEntity<List<Map<String, Any?>>> {
+    ): ResponseEntity<List<DailyTaskResponse>> {
         val userId = authentication.principal as Long
         val targetDate = date?.let { LocalDate.parse(it) } ?: LocalDate.now()
         return ResponseEntity.ok(taskService.getDailyTasksForWard(userId, targetDate))
     }
 
-    /**
-     * Получение конкретной задачи-шаблона.
-     *
-     * @param authentication объект аутентификации из SecurityContext
-     * @param scheduleId идентификатор расписания
-     * @param taskId идентификатор задачи
-     * @return 200 OK с данными задачи
-     */
+    /** Получение конкретной задачи-шаблона  */
     @GetMapping("/schedules/{scheduleId}/tasks/{taskId}")
     fun getTask(
         authentication: Authentication,
         @PathVariable scheduleId: Long,
         @PathVariable taskId: Long
-    ): ResponseEntity<Map<String, Any?>> {
+    ): ResponseEntity<TaskResponse> {
         val userId = authentication.principal as Long
         return ResponseEntity.ok(taskService.getTaskForWard(userId, scheduleId, taskId))
     }

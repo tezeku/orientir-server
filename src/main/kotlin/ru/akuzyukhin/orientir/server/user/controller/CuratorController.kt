@@ -33,7 +33,7 @@ class CuratorController(
         @Valid @RequestBody request: AddWardRequest
     ): ResponseEntity<WardSummary> {
         val userId = authentication.principal as Long
-        val response = curatorWardService.addWard(userId, request.wardPhoneNumber)
+        val response = curatorWardService.addWard(userId, request.phoneNumber)
         return ResponseEntity.status(HttpStatus.CREATED).body(response)
     }
 
