@@ -3,6 +3,9 @@ package ru.akuzyukhin.orientir.server.notification.repository
 import org.springframework.data.domain.Page
 import org.springframework.data.domain.Pageable
 import org.springframework.data.jpa.repository.JpaRepository
+import org.springframework.data.jpa.repository.Modifying
+import org.springframework.data.jpa.repository.Query
+import org.springframework.data.repository.query.Param
 import ru.akuzyukhin.orientir.server.notification.entity.Notification
 
 /**
@@ -55,4 +58,9 @@ interface NotificationRepository : JpaRepository<Notification, Long> {
      * @return список непрочитанных
      */
     fun findAllByRecipientIdAndIsRead(recipientId: Long, isRead: Boolean): List<Notification>
+
+    /** Удаление всех уведомлений, связанных с указанными executions */
+    @Modifying
+    @Query("DELETE FROM Notification n WHERE n.taskExecution.id IN :executionIds")
+    fun deleteAllByTaskExecutionIdIn(@Param("executionIds") executionIds: List<Long>): Int
 }

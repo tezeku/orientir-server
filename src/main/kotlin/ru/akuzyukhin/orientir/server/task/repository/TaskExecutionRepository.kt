@@ -1,6 +1,9 @@
 package ru.akuzyukhin.orientir.server.task.repository
 
 import org.springframework.data.jpa.repository.JpaRepository
+import org.springframework.data.jpa.repository.Modifying
+import org.springframework.data.jpa.repository.Query
+import org.springframework.data.repository.query.Param
 import ru.akuzyukhin.orientir.server.common.enum.ExecutionStatus
 import ru.akuzyukhin.orientir.server.task.entity.TaskExecution
 import java.time.LocalDateTime
@@ -44,4 +47,13 @@ interface TaskExecutionRepository : JpaRepository<TaskExecution, Long> {
      * @return список экземпляров
      */
     fun findAllByStatus(status: ExecutionStatus): List<TaskExecution>
+
+    /** Идентификаторы всех executions, относящихся к указанной задаче */
+    @Query("SELECT te.id FROM TaskExecution te WHERE te.task.id = :taskId")
+    fun findIdsByTaskId(@Param("taskId") taskId: Long): List<Long>
+
+    /** Удаление всех executions указанной задачи */
+    @Modifying
+    @Query("DELETE FROM TaskExecution te WHERE te.task.id = :taskId")
+    fun deleteAllByTaskId(@Param("taskId") taskId: Long): Int
 }

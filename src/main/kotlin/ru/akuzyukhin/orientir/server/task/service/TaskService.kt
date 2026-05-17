@@ -5,6 +5,7 @@ import org.dmfs.rfc5545.recur.RecurrenceRule
 import org.dmfs.rfc5545.recur.RecurrenceRuleIterator
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
+import ru.akuzyukhin.orientir.server.notification.repository.NotificationRepository
 import ru.akuzyukhin.orientir.server.schedule.repository.ScheduleRepository
 import ru.akuzyukhin.orientir.server.task.dto.CreateTaskRequest
 import ru.akuzyukhin.orientir.server.task.dto.DailyTaskInfo
@@ -28,6 +29,7 @@ import java.util.TimeZone
 class TaskService(
     private val taskRepository: TaskRepository,
     private val taskExecutionRepository: TaskExecutionRepository,
+    private val notificationRepository: NotificationRepository,
     private val scheduleRepository: ScheduleRepository,
     private val curatorRepository: CuratorRepository,
     private val wardRepository: WardRepository,
@@ -103,12 +105,19 @@ class TaskService(
         return task.toResponse()
     }
 
-    /** Удаление задачи */
+    /** Удаление задачи вместе с зависимыми executions и notifications */
     @Transactional
     fun delete(curatorUserId: Long, wardId: Long, scheduleId: Long, taskId: Long) {
         validateCuratorWardAccess(curatorUserId, wardId)
         findScheduleByIdAndWard(scheduleId, wardId)
         val task = findTaskByIdAndSchedule(taskId, scheduleId)
+
+        val executionIds = taskExecutionRepository.findIdsByTaskId(taskId)
+        if (executionIds.isNotEmpty()) {
+            notificationRepository.deleteAllByTaskExecutionIdIn(executionIds)
+            taskExecutionRepository.deleteAllByTaskId(taskId)
+        }
+
         taskRepository.delete(task)
     }
 
