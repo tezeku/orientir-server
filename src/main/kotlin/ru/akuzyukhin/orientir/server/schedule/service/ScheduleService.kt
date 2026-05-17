@@ -2,11 +2,14 @@ package ru.akuzyukhin.orientir.server.schedule.service
 
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
+import ru.akuzyukhin.orientir.server.notification.repository.NotificationRepository
 import ru.akuzyukhin.orientir.server.schedule.dto.CreateScheduleRequest
 import ru.akuzyukhin.orientir.server.schedule.dto.ScheduleResponse
 import ru.akuzyukhin.orientir.server.schedule.dto.UpdateScheduleRequest
 import ru.akuzyukhin.orientir.server.schedule.entity.Schedule
 import ru.akuzyukhin.orientir.server.schedule.repository.ScheduleRepository
+import ru.akuzyukhin.orientir.server.task.repository.TaskExecutionRepository
+import ru.akuzyukhin.orientir.server.task.repository.TaskRepository
 import ru.akuzyukhin.orientir.server.user.repository.CuratorRepository
 import ru.akuzyukhin.orientir.server.user.repository.CuratorWardRepository
 import ru.akuzyukhin.orientir.server.user.repository.WardRepository
@@ -25,7 +28,10 @@ class ScheduleService(
     private val scheduleRepository: ScheduleRepository,
     private val curatorRepository: CuratorRepository,
     private val wardRepository: WardRepository,
-    private val curatorWardRepository: CuratorWardRepository
+    private val curatorWardRepository: CuratorWardRepository,
+    private val taskRepository: TaskRepository,
+    private val taskExecutionRepository: TaskExecutionRepository,
+    private val notificationRepository: NotificationRepository,
 ) {
 
     /**
@@ -95,6 +101,17 @@ class ScheduleService(
     fun delete(curatorUserId: Long, wardId: Long, scheduleId: Long) {
         validateCuratorWardAccess(curatorUserId, wardId)
         val schedule = findScheduleByIdAndWard(scheduleId, wardId)
+
+        val taskIds = taskRepository.findIdsByScheduleId(scheduleId)
+        if (taskIds.isNotEmpty()) {
+            val executionIds = taskExecutionRepository.findIdsByTaskIdIn(taskIds)
+            if (executionIds.isNotEmpty()) {
+                notificationRepository.deleteAllByTaskExecutionIdIn(executionIds)
+                taskExecutionRepository.deleteAllByTaskIdIn(taskIds)
+            }
+            taskRepository.deleteAllByScheduleId(scheduleId)
+        }
+
         scheduleRepository.delete(schedule)
     }
 

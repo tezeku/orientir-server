@@ -56,4 +56,13 @@ interface TaskExecutionRepository : JpaRepository<TaskExecution, Long> {
     @Modifying
     @Query("DELETE FROM TaskExecution te WHERE te.task.id = :taskId")
     fun deleteAllByTaskId(@Param("taskId") taskId: Long): Int
+
+    /** Удаление всех executions для перечисленного набора задач */
+    @Modifying
+    @Query("DELETE FROM TaskExecution te WHERE te.task.id IN :taskIds")
+    fun deleteAllByTaskIdIn(@Param("taskIds") taskIds: List<Long>): Int
+
+    /** Идентификаторы executions для перечисленного набора задач */
+    @Query("SELECT te.id FROM TaskExecution te WHERE te.task.id IN :taskIds")
+    fun findIdsByTaskIdIn(@Param("taskIds") taskIds: List<Long>): List<Long>
 }
