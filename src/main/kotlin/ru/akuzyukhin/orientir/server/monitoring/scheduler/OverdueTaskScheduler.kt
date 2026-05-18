@@ -4,7 +4,9 @@ import org.springframework.scheduling.annotation.Scheduled
 import org.springframework.stereotype.Component
 import org.springframework.transaction.annotation.Transactional
 import ru.akuzyukhin.orientir.server.common.enum.ExecutionStatus
+import ru.akuzyukhin.orientir.server.common.enum.Importance
 import ru.akuzyukhin.orientir.server.common.enum.NotificationType
+import ru.akuzyukhin.orientir.server.notification.email.EmailService
 import ru.akuzyukhin.orientir.server.user.repository.CuratorWardRepository
 import java.time.LocalDateTime
 import ru.akuzyukhin.orientir.server.notification.service.NotificationService
@@ -19,7 +21,8 @@ import ru.akuzyukhin.orientir.server.task.repository.TaskExecutionRepository
 class OverdueTaskScheduler(
     private val taskExecutionRepository: TaskExecutionRepository,
     private val notificationService: NotificationService,
-    private val curatorWardRepository: CuratorWardRepository
+    private val curatorWardRepository: CuratorWardRepository,
+    private val emailService: EmailService
 ) {
 
     /**
@@ -32,31 +35,44 @@ class OverdueTaskScheduler(
     fun processOverdueTasks() {
         val now = LocalDateTime.now()
 
-        // Поиск всех PENDING экземпляров
         val pendingExecutions = taskExecutionRepository.findAllByStatus(ExecutionStatus.PENDING)
 
         for (execution in pendingExecutions) {
             val deadline = execution.scheduledDateTime
                 .plusMinutes(execution.task.windowMinutes.toLong())
 
-            // Проверка на истечение временного окна
             if (now.isAfter(deadline)) {
                 execution.status = ExecutionStatus.OVERDUE
                 taskExecutionRepository.save(execution)
 
-                //Уведомление всех кураторов подопечного
                 val ward = execution.task.schedule.ward
                 val curatorLinks = curatorWardRepository.findAllByWardId(ward.id)
+
+                val wardFullName = listOfNotNull(
+                    ward.user.surname,
+                    ward.user.name,
+                    ward.user.patronymic
+                ).joinToString(" ")
 
                 for (link in curatorLinks) {
                     notificationService.create(
                         recipient = link.curator.user,
                         type = NotificationType.MISSED,
                         title = "Задача просрочена",
-                        body = "${ward.user.surname} ${ward.user.name} не выполнил задачу " +
+                        body = "$wardFullName не выполнил задачу " +
                                "${execution.task.name} (${execution.scheduledDateTime.toLocalDate()})",
                         taskExecution = execution
                     )
+
+                    if (execution.task.importance == Importance.CRITICAL) {
+                        emailService.sendCriticalTaskOverdue(
+                            toEmail = link.curator.email,
+                            wardName = wardFullName,
+                            taskName = execution.task.name,
+                            scheduledTime = execution.scheduledDateTime
+                        )
+                    }
+
                 }
             }
         }

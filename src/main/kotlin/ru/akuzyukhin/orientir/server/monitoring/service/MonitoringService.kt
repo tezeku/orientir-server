@@ -6,6 +6,7 @@ import ru.akuzyukhin.orientir.server.common.enum.ExecutionStatus
 import ru.akuzyukhin.orientir.server.common.enum.Importance
 import ru.akuzyukhin.orientir.server.common.enum.NotificationType
 import ru.akuzyukhin.orientir.server.monitoring.dto.TaskExecutionResponse
+import ru.akuzyukhin.orientir.server.notification.email.EmailService
 import ru.akuzyukhin.orientir.server.notification.service.NotificationService
 import ru.akuzyukhin.orientir.server.task.entity.TaskExecution
 import ru.akuzyukhin.orientir.server.task.repository.TaskExecutionRepository
@@ -27,7 +28,8 @@ class MonitoringService(
     private val taskExecutionRepository: TaskExecutionRepository,
     private val wardRepository: WardRepository,
     private val notificationService: NotificationService,
-    private val curatorWardRepository: CuratorWardRepository
+    private val curatorWardRepository: CuratorWardRepository,
+    private val emailService: EmailService
 ) {
 
     /** Отметка выполнения задачи */
@@ -75,14 +77,28 @@ class MonitoringService(
         val ward = wardRepository.findByUserId(wardUserId)!!
         val curatorLinks = curatorWardRepository.findAllByWardId(ward.id)
 
+        val wardFullName = listOfNotNull(
+            ward.user.surname,
+            ward.user.name,
+            ward.user.patronymic
+        ).joinToString(" ")
+
         for (link in curatorLinks) {
             notificationService.create(
                 recipient = link.curator.user,
                 type = NotificationType.MISSED,
                 title = "Подопечный не может выполнить задачу",
-                body = "${ward.user.surname} ${ward.user.name} сообщил о невозможности " +
+                body = "$wardFullName сообщил о невозможности " +
                         "выполнить задачу «${execution.task.name}»",
                 taskExecution = execution,
+                comment = comment
+            )
+
+            emailService.sendTaskBlocked(
+                toEmail = link.curator.email,
+                wardName = wardFullName,
+                taskName = execution.task.name,
+                scheduledTime = execution.scheduledDateTime,
                 comment = comment
             )
         }

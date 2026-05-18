@@ -18,6 +18,26 @@ spring:
       kotlin:
         null-is-same-as-default: true
     property-naming-strategy: SNAKE_CASE
+  mail:
+    host: smtp.gmail.com
+    port: 465
+    username: ${MAIL_USERNAME:}
+    password: ${MAIL_PASSWORD:}
+    properties:
+      mail:
+        smtp:
+          auth: true
+          ssl:
+            enable: true
+          connectiontimeout: 30000
+          timeout: 30000
+          writetimeout: 30000
+
+orientir:
+  mail:
+    from: ${MAIL_USERNAME:}
+    from-name: "Ориентир"
+    enabled: ${MAIL_ENABLED:true}
 
 server:
   port: 8080

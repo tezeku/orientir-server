@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8"/>
+    <title>Тестовое письмо</title>
+</head>
+<body style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+<h2 style="color: #1976d2;">Приложение «Ориентир» — тест почты</h2>
+<p>Здравствуйте,</p>
+<p>
+    Это тестовое письмо.
+</p>
+<p>
+    Адрес получателя: <strong th:text="${recipientEmail}">test@example.com</strong>
+</p>
+<hr style="border: none; border-top: 1px solid #e0e0e0; margin-top: 30px;"/>
+<p style="color: #999; font-size: 12px;">
+    Это автоматическое уведомление от приложения «Ориентир».
+    Отвечать на это письмо не нужно.
+</p>
+</body>
+</html>

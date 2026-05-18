@@ -192,7 +192,7 @@ class TaskService(
     }
 
     /** Проверка попадания задачи на указанную дату по RRULE */
-    private fun taskOccursOnDate(task: Task, date: LocalDate): Boolean {
+    fun taskOccursOnDate(task: Task, date: LocalDate): Boolean {
         return try {
             val rule = RecurrenceRule(task.rrule)
             val startDate = date.minusMonths(1)
@@ -224,6 +224,30 @@ class TaskService(
         } catch (e: Exception) {
             false
         }
+    }
+
+    @Transactional
+    fun ensureDailyExecutions(date: LocalDate) {
+        val allTasks = taskRepository.findAll()
+        var created = 0
+
+        for (task in allTasks) {
+            if (!taskOccursOnDate(task, date)) continue
+
+            val scheduledDateTime = LocalDateTime.of(date, task.scheduledTime)
+            if (!taskExecutionRepository.existsByTaskIdAndScheduledDateTime(task.id, scheduledDateTime)) {
+                taskExecutionRepository.save(
+                    TaskExecution(task = task, scheduledDateTime = scheduledDateTime)
+                )
+                created++
+            }
+        }
+
+        log.debug("ensureDailyExecutions: date=$date, created=$created")
+    }
+
+    companion object {
+        private val log = org.slf4j.LoggerFactory.getLogger(TaskService::class.java)
     }
 
     private fun validateCuratorWardAccess(curatorUserId: Long, wardId: Long) {

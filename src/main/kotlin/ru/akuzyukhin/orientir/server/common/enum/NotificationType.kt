@@ -16,5 +16,7 @@ enum class NotificationType {
     WARNING,
 
     /** Ручное уведомление от подопечного или куратора */
-    MANUAL
+    MANUAL,
+
+    THRESHOLD_BREACH
 }

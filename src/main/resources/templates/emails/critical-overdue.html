@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8"/>
+    <title>Пропущена критичная задача</title>
+</head>
+<body style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; color: #333;">
+<h2 style="color: #ef6c00;">Пропущена критически важная задача</h2>
+
+<p>Здравствуйте,</p>
+
+<p>
+    Ваш подопечный <strong th:text="${wardName}">Имя подопечного</strong>
+    не выполнил критически важную задачу в установленный срок:
+</p>
+
+<div style="background: #fff3e0; padding: 15px; border-left: 4px solid #ef6c00; margin: 20px 0; border-radius: 4px;">
+    <div style="font-size: 18px; font-weight: bold;" th:text="${taskName}">Название задачи</div>
+    <div style="color: #757575; margin-top: 5px;">
+        Запланировано на <strong th:text="${scheduledTime}">12:00</strong>
+    </div>
+</div>
+
+<p>
+    Задача отмечена в системе как пропущенная.
+    Рекомендуем связаться с подопечным как можно скорее,
+    чтобы убедиться в его благополучии.
+</p>
+
+<hr style="border: none; border-top: 1px solid #e0e0e0; margin-top: 30px;"/>
+<p style="color: #999; font-size: 12px;">
+    Это автоматическое уведомление от приложения «Ориентир».
+    Отвечать на это письмо не нужно.
+</p>
+</body>
+</html>

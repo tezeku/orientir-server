@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8"/>
+    <title>Превышен порог отклонений</title>
+</head>
+<body style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; color: #333;">
+<h2 style="color: #c62828;">Превышен порог отклонений от расписания</h2>
+
+<p>Здравствуйте,</p>
+
+<p>
+    Согласно автоматическому анализу выполнения задач за последние
+    <strong th:text="${periodDays}">7</strong> дней, ваш подопечный
+    <strong th:text="${wardName}">Имя подопечного</strong>
+    систематически нарушает расписание.
+</p>
+
+<div style="background: #ffebee; padding: 18px; border-left: 4px solid #c62828; margin: 20px 0; border-radius: 4px;">
+    <div style="font-size: 16px; margin-bottom: 8px;">
+        <strong>Глобальный коэффициент отклонений:</strong>
+        <span style="color: #c62828; font-size: 22px; font-weight: bold;"
+              th:text="${currentValuePercent} + '%'">55%</span>
+    </div>
+    <div style="color: #757575; font-size: 14px;">
+        Установленный вами порог: <strong th:text="${thresholdPercent} + '%'">50%</strong>
+    </div>
+    <div style="color: #757575; font-size: 14px; margin-top: 4px;">
+        Динамика за период: <strong th:text="${trendLabel}">ухудшение</strong>
+    </div>
+</div>
+
+<p>
+    Коэффициент учитывает важность задач: нарушения критичных задач
+    учитываются с большим весом. Длительный рост коэффициента может
+    указывать на ухудшение состояния подопечного.
+</p>
+
+<p>
+    Рекомендуем связаться с подопечным, уточнить причины нарушений
+    и при необходимости — скорректировать расписание или его параметры.
+</p>
+
+<hr style="border: none; border-top: 1px solid #e0e0e0; margin-top: 30px;"/>
+<p style="color: #999; font-size: 12px;">
+    Это автоматическое уведомление от приложения «Ориентир».
+    Изменить пороги или отключить уведомления можно в настройках подопечного.
+</p>
+</body>
+</html>

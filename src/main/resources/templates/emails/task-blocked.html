@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8"/>
+    <title>Подопечный заблокировал задачу</title>
+</head>
+<body style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; color: #333;">
+<h2 style="color: #d32f2f;">Подопечный не может выполнить задачу</h2>
+
+<p>Здравствуйте,</p>
+
+<p>
+    Ваш подопечный <strong th:text="${wardName}">Имя подопечного</strong>
+    сообщил, что не может выполнить следующую задачу:
+</p>
+
+<div style="background: #ffebee; padding: 15px; border-left: 4px solid #d32f2f; margin: 20px 0; border-radius: 4px;">
+    <div style="font-size: 18px; font-weight: bold;" th:text="${taskName}">Название задачи</div>
+    <div style="color: #757575; margin-top: 5px;">
+        Запланировано на <strong th:text="${scheduledTime}">12:00</strong>
+    </div>
+</div>
+
+<div th:if="${comment != null and !#strings.isEmpty(comment)}">
+    <p><strong>Комментарий подопечного:</strong></p>
+    <blockquote style="background: #fafafa; padding: 15px; margin: 10px 0; font-style: italic; border-left: 3px solid #bdbdbd;">
+        <span th:text="${comment}">Комментарий</span>
+    </blockquote>
+</div>
+
+<p>
+    Рекомендуем связаться с подопечным для уточнения ситуации
+    и при необходимости — скорректировать расписание.
+</p>
+
+<hr style="border: none; border-top: 1px solid #e0e0e0; margin-top: 30px;"/>
+<p style="color: #999; font-size: 12px;">
+    Это автоматическое уведомление от приложения «Ориентир».
+    Отвечать на это письмо не нужно.
+</p>
+</body>
+</html>

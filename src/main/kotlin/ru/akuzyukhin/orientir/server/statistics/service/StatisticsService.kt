@@ -9,6 +9,7 @@ import ru.akuzyukhin.orientir.server.user.repository.CuratorRepository
 import ru.akuzyukhin.orientir.server.user.repository.CuratorWardRepository
 import ru.akuzyukhin.orientir.server.user.repository.WardRepository
 import java.time.LocalDate
+import java.time.temporal.ChronoUnit
 import kotlin.collections.filter
 
 /**
@@ -23,7 +24,8 @@ class StatisticsService(
     private val taskExecutionRepository: TaskExecutionRepository,
     private val curatorRepository: CuratorRepository,
     private val wardRepository: WardRepository,
-    private val curatorWardRepository: CuratorWardRepository
+    private val curatorWardRepository: CuratorWardRepository,
+    private val wardThresholdsService: WardThresholdsService
 ) {
 
     /**
@@ -97,15 +99,7 @@ class StatisticsService(
         )
     }
 
-    /**
-     * Получение глобального отклонения.
-     *
-     * @param curatorUserId идентификатор пользователя-куратора из JWT
-     * @param wardId идентификатор подопечного
-     * @param from начало периода
-     * @param to конец периода
-     * @return глобальное отклонение с порогом и трендом
-     */
+    /** Получение глобального отклонения */
     fun getGlobalDeviation(
         curatorUserId: Long,
         wardId: Long,
@@ -113,23 +107,35 @@ class StatisticsService(
         to: LocalDate
     ): Map<String, Any?> {
         validateCuratorWardAccess(curatorUserId, wardId)
+
+        val thresholds = wardThresholdsService.getForWard(wardId)
+        val threshold = thresholds.maxGlobalDeviationPercent / 100.0
+
+        val currentG = calculateG(wardId, from, to)
+
+        val periodLengthDays = ChronoUnit.DAYS.between(from, to)
+        val previousFrom = from.minusDays(periodLengthDays + 1)
+        val previousTo = from.minusDays(1)
+        val previousG = calculateG(wardId, previousFrom, previousTo)
+
+        val trend = computeTrend(currentG, previousG)
+
+        return mapOf(
+            "wardId" to wardId,
+            "period" to mapOf("from" to from.toString(), "to" to to.toString()),
+            "globalDeviation" to Math.round(currentG * 1000.0) / 1000.0,
+            "previousGlobalDeviation" to Math.round(previousG * 1000.0) / 1000.0,
+            "threshold" to threshold,
+            "isExceeded" to (currentG >= threshold),
+            "trend" to trend
+        )
+    }
+
+    private fun calculateG(wardId: Long, from: LocalDate, to: LocalDate): Double {
         val executions = getExecutions(wardId, from, to)
+        if (executions.isEmpty()) return 0.0
 
-        if (executions.isEmpty()) {
-            return mapOf(
-                "wardId" to wardId,
-                "period" to mapOf("from" to from.toString(), "to" to to.toString()),
-                "globalDeviation" to 0.0,
-                "threshold" to 0.7,
-                "isExceeded" to false,
-                "trend" to "STABLE"
-            )
-        }
-
-        // Веса важности
         val importanceWeight = mapOf("LOW" to 1.0, "MEDIUM" to 2.0, "CRITICAL" to 3.0)
-
-        // Веса статусов (штрафные баллы)
         val statusWeight = mapOf(
             ExecutionStatus.COMPLETED to 0.0,
             ExecutionStatus.COMPLETED_LATE to 0.3,
@@ -141,28 +147,27 @@ class StatisticsService(
 
         var totalWeight = 0.0
         var totalPenalty = 0.0
-
         for (exec in executions) {
             val iw = importanceWeight[exec.task.importance.name] ?: 1.0
             val sw = statusWeight[exec.status] ?: 0.0
             totalWeight += iw
             totalPenalty += iw * sw
         }
-
-        val globalDeviation = if (totalWeight > 0) totalPenalty / totalWeight else 0.0
-        val threshold = 0.7 // TODO: хранить в БД как настройку куратора
-
-        return mapOf(
-            "wardId" to wardId,
-            "period" to mapOf("from" to from.toString(), "to" to to.toString()),
-            "globalDeviation" to Math.round(globalDeviation * 1000.0) / 1000.0,
-            "threshold" to threshold,
-            "isExceeded" to (globalDeviation >= threshold),
-            "trend" to "STABLE" // TODO: сравнение с предыдущим периодом
-        )
+        return if (totalWeight > 0) totalPenalty / totalWeight else 0.0
     }
 
-    // Вспомогательные методы
+    private fun computeTrend(current: Double, previous: Double): String {
+        val delta = current - previous
+        return when {
+            delta < -DELTA_SENSITIVITY -> "IMPROVING"
+            delta > DELTA_SENSITIVITY -> "WORSENING"
+            else -> "STABLE"
+        }
+    }
+
+    companion object {
+        private const val DELTA_SENSITIVITY = 0.05
+    }
 
     /** Получение экземпляров задач подопечного за период */
     private fun getExecutions(wardId: Long, from: LocalDate, to: LocalDate): List<TaskExecution> {
@@ -235,5 +240,33 @@ class StatisticsService(
         if (!curatorWardRepository.existsByCuratorIdAndWardId(curator.id, wardId)) {
             throw IllegalArgumentException("Куратор не привязан к данному подопечному")
         }
+    }
+
+    /** Расчёт глобального коэффициента для scheduler — без проверки доступа куратора */
+    fun calculateGlobalDeviationForScheduler(
+        wardId: Long,
+        from: LocalDate,
+        to: LocalDate
+    ): Map<String, Any?> {
+        val thresholds = wardThresholdsService.getForWard(wardId)
+        val threshold = thresholds.maxGlobalDeviationPercent / 100.0
+
+        val currentG = calculateG(wardId, from, to)
+
+        val periodLengthDays = ChronoUnit.DAYS.between(from, to)
+        val previousFrom = from.minusDays(periodLengthDays + 1)
+        val previousTo = from.minusDays(1)
+        val previousG = calculateG(wardId, previousFrom, previousTo)
+
+        val trend = computeTrend(currentG, previousG)
+
+        return mapOf(
+            "wardId" to wardId,
+            "globalDeviation" to currentG,
+            "previousGlobalDeviation" to previousG,
+            "threshold" to threshold,
+            "isExceeded" to (currentG >= threshold),
+            "trend" to trend
+        )
     }
 }
