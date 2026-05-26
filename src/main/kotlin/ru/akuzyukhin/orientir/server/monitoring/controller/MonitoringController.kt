@@ -1,7 +1,6 @@
 package ru.akuzyukhin.orientir.server.monitoring.controller
 
 import jakarta.validation.Valid
-import org.antlr.v4.runtime.atn.ATN
 import org.springframework.http.ResponseEntity
 import org.springframework.security.core.Authentication
 import org.springframework.web.bind.annotation.PathVariable

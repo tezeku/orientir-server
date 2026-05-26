@@ -18,7 +18,7 @@ import ru.akuzyukhin.orientir.server.user.repository.WardRepository
  * - получение списка кураторов подопечного;
  * - удаление связи.
  *
- * CRUD: куратор - C, R, D; подпоечный - R.
+ * CRUD: куратор - C, R, D; подопечный - R.
  */
 @Service
 class CuratorWardService(

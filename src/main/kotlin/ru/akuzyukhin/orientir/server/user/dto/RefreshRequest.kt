@@ -5,7 +5,7 @@ import jakarta.validation.constraints.NotBlank
 /** Тело запроса на обновление пары токенов */
 data class RefreshRequest(
 
-    /** Действующий refreh-токен */
+    /** Действующий refresh-токен */
     @field:NotBlank(message = "Refresh-токен не может быть пустым")
     val refreshToken: String
 )

@@ -19,7 +19,7 @@ import jakarta.persistence.UniqueConstraint
  * Уникальное ограничение на пару (curator_id, ward_id) предотвращает
  * дублирование связей.
  *
- * CRUD: куратор - C, R, D; подпоечный - R.
+ * CRUD: куратор - C, R, D; подопечный - R.
  */
 @Entity
 @Table(

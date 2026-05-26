@@ -7,7 +7,7 @@ import ru.akuzyukhin.orientir.server.user.entity.Ward
  * Репозиторий для работы с таблицей wards.
  *
  * Является расширением базовой сущности пользователя [ru.akuzyukhin.orientir.server.user.entity.User]
- *  * для пользователей с ролью WARD. Хранит дополнительные данные, такие как адрес проживания.
+ * для пользователей с ролью WARD. Хранит дополнительные данные, такие как адрес проживания.
  */
 interface WardRepository : JpaRepository<Ward, Long> {
 

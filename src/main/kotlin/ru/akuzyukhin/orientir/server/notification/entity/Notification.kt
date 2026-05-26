@@ -7,6 +7,7 @@ import jakarta.persistence.Enumerated
 import jakarta.persistence.GeneratedValue
 import jakarta.persistence.GenerationType
 import jakarta.persistence.Id
+import jakarta.persistence.Index
 import jakarta.persistence.JoinColumn
 import jakarta.persistence.ManyToOne
 import jakarta.persistence.Table
@@ -24,7 +25,13 @@ import java.time.LocalDateTime
  * CRUD: куратор - C, R, U; подопечный - R, U.
  */
 @Entity
-@Table(name = "notifications")
+@Table(
+    name = "notifications",
+    indexes = [
+        Index(name = "idx_notifications_recipient_id", columnList = "recipient_id"),
+        Index(name = "idx_notifications_task_execution_id", columnList = "task_execution_id")
+    ]
+)
 class Notification(
 
     /** Уникальный идентификатор уведомления (автоинкремент) */
@@ -37,7 +44,7 @@ class Notification(
     @JoinColumn(name = "recipient_id", nullable = false)
     val recipient: User,
 
-    /** Тип уведомления: REMINDER, MISSED, WARNING, MANUAL */
+    /** Тип уведомления: REMINDER, MISSED, WARNING, MANUAL, THRESHOLD_BREACH */
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     val type: NotificationType,

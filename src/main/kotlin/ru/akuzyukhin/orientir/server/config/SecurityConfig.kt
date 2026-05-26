@@ -2,7 +2,6 @@ package ru.akuzyukhin.orientir.server.config
 
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
-import org.springframework.scheduling.annotation.EnableScheduling
 import org.springframework.security.config.annotation.web.builders.HttpSecurity
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity
 import org.springframework.security.config.http.SessionCreationPolicy
@@ -16,7 +15,6 @@ import ru.akuzyukhin.orientir.server.security.JwtAuthenticationFilter
 /** Конфигурация Spring Security */
 @Configuration
 @EnableWebSecurity
-@EnableScheduling
 class SecurityConfig(
     private val jwtAuthenticationFilter: JwtAuthenticationFilter,
     private val jwtAuthenticationEntryPoint: JwtAuthenticationEntryPoint

@@ -117,7 +117,7 @@ class NotificationService(
     /**
      * Отметить все уведомления пользователя прочитанными.
      *
-     * @param userId идентификтаор пользователя из JWT
+     * @param userId идентификатор пользователя из JWT
      * @return количество обновленных уведомлений
      */
     @Transactional
@@ -139,6 +139,15 @@ class NotificationService(
         val count = notificationRepository.countByRecipientIdAndIsRead(userId, false)
         return mapOf("unreadCount" to count)
     }
+
+    /**
+     * Проверяет, создано ли уже REMINDER для данного выполнения задачи.
+     *
+     * @param execution выполнение задачи
+     * @return true если REMINDER уже существует
+     */
+    fun existsReminder(execution: TaskExecution): Boolean =
+        notificationRepository.existsByTaskExecutionAndType(execution, NotificationType.REMINDER)
 
     /**
      * Формирование ответа для уведомления.

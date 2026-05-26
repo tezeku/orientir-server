@@ -10,7 +10,6 @@ import ru.akuzyukhin.orientir.server.user.repository.CuratorWardRepository
 import ru.akuzyukhin.orientir.server.user.repository.WardRepository
 import java.time.LocalDate
 import java.time.temporal.ChronoUnit
-import kotlin.collections.filter
 
 /**
  * Сервис статистики и аналитики.

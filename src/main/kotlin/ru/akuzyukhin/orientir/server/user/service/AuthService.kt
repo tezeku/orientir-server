@@ -1,5 +1,6 @@
 package ru.akuzyukhin.orientir.server.user.service
 
+import org.springframework.beans.factory.annotation.Value
 import org.springframework.security.crypto.password.PasswordEncoder
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
@@ -28,7 +29,9 @@ class AuthService(
     private val curatorRepository: CuratorRepository,
     private val wardRepository: WardRepository,
     private val passwordEncoder: PasswordEncoder,
-    private val jwtTokenProvider: JwtTokenProvider
+    private val jwtTokenProvider: JwtTokenProvider,
+    @Value("\${jwt.access-expiration-ms}")
+    private val accessExpirationMs: Long
 ) {
 
     /**
@@ -88,7 +91,7 @@ class AuthService(
     }
 
     /**
-     * Аутентификация пользоваателя.
+     * Аутентификация пользователя.
      * - поиск пользователя по номеру телефона;
      * - проверка пароля;
      * - проверка активности учетной записи;
@@ -111,7 +114,7 @@ class AuthService(
 
         // Проверка активности учетной записи
         if (!user.isActive) {
-            throw IllegalArgumentException("Учтная запись деактивирована")
+            throw IllegalArgumentException("Учётная запись деактивирована")
         }
 
         // Генерация токенов
@@ -157,7 +160,7 @@ class AuthService(
             role = user.role.name,
             accessToken = accessToken,
             refreshToken = refreshToken,
-            expiresIn = 900
+            expiresIn = accessExpirationMs / 1000
         )
     }
 }

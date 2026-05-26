@@ -74,7 +74,9 @@ class MonitoringService(
         execution.status = ExecutionStatus.BLOCKED
         taskExecutionRepository.save(execution)
 
-        val ward = wardRepository.findByUserId(wardUserId)!!
+        val ward = requireNotNull(wardRepository.findByUserId(wardUserId)) {
+            "Профиль подопечного не найден"
+        }
         val curatorLinks = curatorWardRepository.findAllByWardId(ward.id)
 
         val wardFullName = listOfNotNull(
@@ -108,9 +110,9 @@ class MonitoringService(
 
     /**
      * Поиск экземпляра задачи с проверкой:
-     * - сущестования;
-     * - принадлежности подопечности;
-     * - статусу "не обработан".
+     * - существования;
+     * - принадлежности подопечному;
+     * - статуса "не обработан".
      * */
     private fun findAndValidateExecution(wardUserId: Long, taskExecutionId: Long): TaskExecution {
         val ward = wardRepository.findByUserId(wardUserId)

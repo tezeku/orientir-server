@@ -6,7 +6,9 @@ import org.springframework.data.jpa.repository.JpaRepository
 import org.springframework.data.jpa.repository.Modifying
 import org.springframework.data.jpa.repository.Query
 import org.springframework.data.repository.query.Param
+import ru.akuzyukhin.orientir.server.common.enum.NotificationType
 import ru.akuzyukhin.orientir.server.notification.entity.Notification
+import ru.akuzyukhin.orientir.server.task.entity.TaskExecution
 
 /**
  * Репозиторий для работы с таблицей notifications.
@@ -58,6 +60,9 @@ interface NotificationRepository : JpaRepository<Notification, Long> {
      * @return список непрочитанных
      */
     fun findAllByRecipientIdAndIsRead(recipientId: Long, isRead: Boolean): List<Notification>
+
+    /** Проверка существования REMINDER для указанного выполнения (идемпотентность планировщика) */
+    fun existsByTaskExecutionAndType(taskExecution: TaskExecution, type: NotificationType): Boolean
 
     /** Удаление всех уведомлений, связанных с указанными executions */
     @Modifying

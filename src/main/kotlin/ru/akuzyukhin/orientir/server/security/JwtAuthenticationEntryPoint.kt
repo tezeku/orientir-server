@@ -8,7 +8,7 @@ import org.springframework.stereotype.Component
 import tools.jackson.databind.ObjectMapper
 import java.time.Instant
 
-/** Обработчик случая "запрос пришел без валидной аутентификвации" */
+/** Обработчик случая "запрос пришёл без валидной аутентификации" */
 @Component
 class JwtAuthenticationEntryPoint(
     private val objectMapper: ObjectMapper

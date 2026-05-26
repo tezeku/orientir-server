@@ -7,6 +7,7 @@ import jakarta.persistence.Enumerated
 import jakarta.persistence.GeneratedValue
 import jakarta.persistence.GenerationType
 import jakarta.persistence.Id
+import jakarta.persistence.Index
 import jakarta.persistence.JoinColumn
 import jakarta.persistence.ManyToOne
 import jakarta.persistence.Table
@@ -20,7 +21,7 @@ import java.time.LocalDateTime
  * CRUD: подопечный - C, R, U; куратор - R.
  */
 @Entity
-@Table(name = "task_execution")
+@Table(name = "task_execution", indexes = [Index(name = "idx_task_execution_task_id", columnList = "task_id")])
 class TaskExecution(
 
     /** Уникальный идентификатор факта выполнения (автоинкремент) */

@@ -10,7 +10,7 @@ import ru.akuzyukhin.orientir.server.user.entity.Curator
  * для пользователей с ролью CURATOR. Хранит дополнительные данные, необходимые для куратора
  * (email для отправки уведомлений).
  */
-interface CuratorRepository: JpaRepository<Curator, Long> {
+interface CuratorRepository : JpaRepository<Curator, Long> {
 
     /**
      * Поиск куратора по идентификатору пользователя.

@@ -31,12 +31,6 @@ class UserService(
      * Получение профиля текущего пользователя.
      *
      * @param userId идентификатор пользователя из JWT
-     * @return map с данными профиля
-     */
-    /**
-     * Получение профиля текущего пользователя.
-     *
-     * @param userId идентификатор пользователя из JWT
      * @return типизированный ProfileResponse
      */
     fun getProfile(userId: Long): ProfileResponse {
@@ -124,7 +118,7 @@ class UserService(
         }
 
         // Валидация нового пароля
-        if (newPassword .length < 8) {
+        if (newPassword.length < 8) {
             throw IllegalArgumentException("Пароль должен содержать минимум 8 символов")
         }
 
@@ -137,7 +131,7 @@ class UserService(
      * Поиск пользователя по id
      *
      * @param userId идентификатор пользователя
-     * @return найденный пользовтаель
+     * @return найденный пользователь
      * @throws IllegalArgumentException если пользователь не найден
      */
     private fun findUserById(userId: Long): User {

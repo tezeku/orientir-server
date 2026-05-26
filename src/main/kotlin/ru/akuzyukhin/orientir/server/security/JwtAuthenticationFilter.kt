@@ -3,6 +3,7 @@ package ru.akuzyukhin.orientir.server.security
 import jakarta.servlet.FilterChain
 import jakarta.servlet.http.HttpServletRequest
 import jakarta.servlet.http.HttpServletResponse
+import org.slf4j.LoggerFactory
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken
 import org.springframework.security.core.authority.SimpleGrantedAuthority
 import org.springframework.security.core.context.SecurityContextHolder
@@ -54,6 +55,7 @@ class JwtAuthenticationFilter(
             }
         } catch (e: Exception) {
             // Обработка невалидного токена
+            log.debug("Невалидный JWT", e)
             SecurityContextHolder.clearContext()
         }
 
@@ -62,9 +64,9 @@ class JwtAuthenticationFilter(
     }
 
     /**
-     * Извлечени JWT-токена из заголовка Authorization.
+     * Извлечение JWT-токена из заголовка Authorization.
      *
-     * @param request HTTp-запрос
+     * @param request HTTP-запрос
      * @return токен без префикса/null
      */
     private fun extractToken(request: HttpServletRequest): String? {
@@ -74,5 +76,9 @@ class JwtAuthenticationFilter(
         } else {
             null
         }
+    }
+
+    companion object {
+        private val log = LoggerFactory.getLogger(JwtAuthenticationFilter::class.java)
     }
 }

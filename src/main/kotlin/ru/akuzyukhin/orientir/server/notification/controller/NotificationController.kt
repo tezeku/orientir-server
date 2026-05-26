@@ -22,7 +22,7 @@ class NotificationController(
      * Список уведомлений с пагинацией.
      *
      * @param authentication объект аутентификации из SecurityContext
-     * @param isRead фиьтр по прочтению (опционально)
+     * @param isRead фильтр по прочтению (опционально)
      * @param page номер страницы (по умолчанию 0)
      * @param size размер страницы (по умолчанию 20)
      * @return 200 OK со страницей уведомлений

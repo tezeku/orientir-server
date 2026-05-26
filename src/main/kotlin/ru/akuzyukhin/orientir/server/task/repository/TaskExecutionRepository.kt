@@ -65,15 +65,4 @@ interface TaskExecutionRepository : JpaRepository<TaskExecution, Long> {
     /** Идентификаторы executions для перечисленного набора задач */
     @Query("SELECT te.id FROM TaskExecution te WHERE te.task.id IN :taskIds")
     fun findIdsByTaskIdIn(@Param("taskIds") taskIds: List<Long>): List<Long>
-
-    @Query("""
-    SELECT te FROM TaskExecution te
-    WHERE te.task.schedule.ward.id = :wardId
-    AND te.scheduledDateTime BETWEEN :from AND :to
-""")
-    fun findAllByWardIdAndScheduledBetween(
-        @Param("wardId") wardId: Long,
-        @Param("from") from: LocalDateTime,
-        @Param("to") to: LocalDateTime
-    ): List<TaskExecution>
 }

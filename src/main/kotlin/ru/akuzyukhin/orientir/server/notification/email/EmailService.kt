@@ -18,14 +18,6 @@ class EmailService(
     private val templateEngine: TemplateEngine,
     private val properties: MailProperties
 ) {
-    @Async
-    fun sendTest(toEmail: String) {
-        val context = Context().apply {
-            setVariable("recipientEmail", toEmail)
-        }
-        val html = templateEngine.process("emails/test", context)
-        send(toEmail, "Тестовое письмо от приложения «Ориентир»", html)
-    }
 
     /** Уведомление куратору о блокировке задачи подопечным */
     @Async
