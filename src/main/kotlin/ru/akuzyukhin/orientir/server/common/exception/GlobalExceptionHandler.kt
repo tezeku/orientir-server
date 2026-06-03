@@ -3,6 +3,7 @@ package ru.akuzyukhin.orientir.server.common.exception
 import org.slf4j.LoggerFactory
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
+import org.springframework.http.converter.HttpMessageNotReadableException
 import org.springframework.web.bind.MethodArgumentNotValidException
 import org.springframework.web.bind.annotation.ExceptionHandler
 import org.springframework.web.bind.annotation.RestControllerAdvice
@@ -26,6 +27,17 @@ class GlobalExceptionHandler {
     fun handleValidation(e: MethodArgumentNotValidException): ResponseEntity<ErrorResponse> {
         val message = e.bindingResult.fieldErrors
             .joinToString("; ") { "${it.field}: ${it.defaultMessage}" }
+        return buildResponse(HttpStatus.BAD_REQUEST, message)
+    }
+
+    /**
+     * Ошибки десериализации запроса (отсутствующие или неверные поля).
+     *
+     * @return 400 Bad Request
+     */
+    @ExceptionHandler(HttpMessageNotReadableException::class)
+    fun handleNotReadable(e: HttpMessageNotReadableException): ResponseEntity<ErrorResponse> {
+        val message = e.cause?.message ?: "Некорректное тело запроса"
         return buildResponse(HttpStatus.BAD_REQUEST, message)
     }
 

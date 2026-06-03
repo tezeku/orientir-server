@@ -55,6 +55,7 @@ class TaskService(
                 name = request.name,
                 type = request.type,
                 importance = request.importance,
+                startDate = request.startDate ?: LocalDate.now(),
                 rrule = request.rrule,
                 scheduledTime = request.scheduledTime,
                 windowMinutes = request.windowMinutes
@@ -94,6 +95,7 @@ class TaskService(
         request.name?.let { task.name = it }
         request.type?.let { task.type = it }
         request.importance?.let { task.importance = it }
+        request.startDate?.let { task.startDate = it }
         request.rrule?.let {
             validateRrule(it)
             task.rrule = it
@@ -193,14 +195,14 @@ class TaskService(
 
     /** Проверка попадания задачи на указанную дату по RRULE */
     fun taskOccursOnDate(task: Task, date: LocalDate): Boolean {
+        if (date < task.startDate) return false
         return try {
             val rule = RecurrenceRule(task.rrule)
-            val startDate = date.minusMonths(1)
             val start = DateTime(
                 TimeZone.getDefault(),
-                startDate.year,
-                startDate.monthValue - 1,
-                startDate.dayOfMonth,
+                task.startDate.year,
+                task.startDate.monthValue - 1,
+                task.startDate.dayOfMonth,
                 task.scheduledTime.hour,
                 task.scheduledTime.minute,
                 task.scheduledTime.second
@@ -284,6 +286,7 @@ class TaskService(
         name = name,
         type = type,
         importance = importance,
+        startDate = startDate,
         rrule = rrule,
         scheduledTime = scheduledTime,
         windowMinutes = windowMinutes

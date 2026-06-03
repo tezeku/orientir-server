@@ -14,6 +14,7 @@ import jakarta.persistence.Table
 import ru.akuzyukhin.orientir.server.common.enum.Importance
 import ru.akuzyukhin.orientir.server.common.enum.TaskType
 import ru.akuzyukhin.orientir.server.schedule.entity.Schedule
+import java.time.LocalDate
 import java.time.LocalTime
 
 /**
@@ -49,6 +50,10 @@ class Task(
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     var importance: Importance,
+
+    /** Дата первого вхождения задачи (DTSTART для RRULE) */
+    @Column(name = "start_date", nullable = false, columnDefinition = "date not null default current_date")
+    var startDate: LocalDate,
 
     /** Правило повторения задачи в формате RRULE */
     @Column(nullable = false)

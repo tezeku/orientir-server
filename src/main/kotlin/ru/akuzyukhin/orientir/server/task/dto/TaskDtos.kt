@@ -7,6 +7,7 @@ import jakarta.validation.constraints.Size
 import ru.akuzyukhin.orientir.server.common.enum.ExecutionStatus
 import ru.akuzyukhin.orientir.server.common.enum.Importance
 import ru.akuzyukhin.orientir.server.common.enum.TaskType
+import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.LocalTime
 
@@ -17,6 +18,7 @@ data class TaskResponse(
     val name: String,
     val type: TaskType,
     val importance: Importance,
+    val startDate: LocalDate,
     val rrule: String,
     val scheduledTime: LocalTime,
     val windowMinutes: Int
@@ -33,6 +35,8 @@ data class CreateTaskRequest(
 
     @field:NotNull(message = "Необходимо указать важность")
     val importance: Importance,
+
+    val startDate: LocalDate? = null,
 
     @field:NotBlank(message = "Правило повторения не может быть пустым")
     val rrule: String,
@@ -51,6 +55,7 @@ data class UpdateTaskRequest(
     val name: String? = null,
     val type: TaskType? = null,
     val importance: Importance? = null,
+    val startDate: LocalDate? = null,
     val rrule: String? = null,
     val scheduledTime: LocalTime? = null,
     @field:Min(value = 1, message = "Временное окно должно быть не менее 1 минуты")
